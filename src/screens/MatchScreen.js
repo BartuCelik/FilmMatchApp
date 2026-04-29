@@ -1,32 +1,57 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import Swiper from 'react-native-deck-swiper';
-import { fetchMovies } from '../services/movieApi';
+import { fetchContent } from '../services/api';
 
-export default function MatchScreen({ navigation }) {
+// Remove duplicate items when we combine multiple lists.
+const dedupeByTmdbId = (items) =>
+  items.filter(
+    (item, index, self) => self.findIndex((compareItem) => compareItem.tmdbId === item.tmdbId) === index
+  );
+
+export default function MatchScreen({ navigation, route }) {
+  const mode = route?.params?.mode || 'movie';
+  const category = route?.params?.category || 'popular';
   const swiperRef = useRef(null);
   const toastTimerRef = useRef(null);
-  const [movies, setMovies] = useState([]);
+  const [contentItems, setContentItems] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [hasLoadError, setHasLoadError] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
   const [failedImages, setFailedImages] = useState({});
 
-  useEffect(() => {
-    const loadMovies = async () => {
-      setLoading(true);
-      const fetchedMovies = await fetchMovies();
-      setMovies(fetchedMovies);
+  // Load content based on selected mode and category.
+  const loadContent = async () => {
+    setLoading(true);
+    setHasLoadError(false);
+    try {
+      if (mode === 'tv' && category === 'mixed') {
+        const [popularSeries, topRatedSeries] = await Promise.all([
+          fetchContent('tv', 'popular'),
+          fetchContent('tv', 'top_rated'),
+        ]);
+        setContentItems(dedupeByTmdbId([...popularSeries, ...topRatedSeries]));
+      } else {
+        const fetchedContent = await fetchContent(mode, category);
+        setContentItems(fetchedContent);
+      }
+    } catch (error) {
+      console.error('Failed to load content list:', error);
+      setHasLoadError(true);
+      setContentItems([]);
+    } finally {
       setLoading(false);
-    };
+    }
+  };
 
-    loadMovies();
-
+  useEffect(() => {
+    loadContent();
     return () => {
       if (toastTimerRef.current) {
         clearTimeout(toastTimerRef.current);
       }
     };
-  }, []);
+  }, [mode, category]);
 
   const showToast = (message) => {
     if (toastTimerRef.current) {
@@ -44,22 +69,22 @@ export default function MatchScreen({ navigation }) {
     </View>
   );
 
-  const getMovieImageUri = (movie) => {
-    const failCount = failedImages[movie.id] ?? 0;
+  const getCardImageUri = (item) => {
+    const failCount = failedImages[item.id] ?? 0;
     if (failCount === 0) {
-      return movie.image;
+      return item.image;
     }
     if (failCount === 1) {
-      return movie.backupImage || movie.fallbackImage || movie.image;
+      return item.backupImage || item.fallbackImage || item.image;
     }
-    return movie.fallbackImage || movie.backupImage || movie.image;
+    return item.fallbackImage || item.backupImage || item.image;
   };
 
-  const renderCard = (movie) => {
-    if (!movie) {
+  const renderCard = (item) => {
+    if (!item) {
       return (
         <View style={styles.emptyCard}>
-          <Text style={styles.emptyText}>Film kalmadi</Text>
+          <Text style={styles.emptyText}>{mode === 'tv' ? 'No more series' : 'No more movies'}</Text>
         </View>
       );
     }
@@ -67,18 +92,18 @@ export default function MatchScreen({ navigation }) {
     return (
       <View style={styles.card}>
         <Image
-          source={{ uri: getMovieImageUri(movie) }}
+          source={{ uri: getCardImageUri(item) }}
           style={styles.poster}
           resizeMode="cover"
           onError={() => {
-            const failCount = failedImages[movie.id] ?? 0;
-            setFailedImages((prev) => ({ ...prev, [movie.id]: failCount + 1 }));
-            console.log('Poster yüklenemedi:', movie.title, getMovieImageUri(movie));
+            const failCount = failedImages[item.id] ?? 0;
+            setFailedImages((prev) => ({ ...prev, [item.id]: failCount + 1 }));
+            console.log('Poster failed to load:', item.title, getCardImageUri(item));
           }}
         />
         <View style={styles.cardFooter}>
-          <Text style={styles.movieTitle}>{movie.title}</Text>
-          <Text style={styles.movieRating}>TMDB: {Number(movie.score).toFixed(1)}</Text>
+          <Text style={styles.movieTitle}>{item.title}</Text>
+          <Text style={styles.movieRating}>TMDB: {Number(item.score).toFixed(1)}</Text>
         </View>
       </View>
     );
@@ -86,15 +111,26 @@ export default function MatchScreen({ navigation }) {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Film Sec</Text>
+      <Text style={styles.title}>{mode === 'tv' ? 'Pick a Series' : 'Pick a Movie'}</Text>
 
       <View style={styles.swiperContainer}>
         {loading ? (
           <ActivityIndicator size="large" color="#8B3DFF" />
+        ) : hasLoadError ? (
+          <View style={styles.statusCard}>
+            <Text style={styles.statusText}>Could not load content.</Text>
+            <TouchableOpacity style={styles.retryButton} onPress={loadContent}>
+              <Text style={styles.retryButtonText}>Try Again</Text>
+            </TouchableOpacity>
+          </View>
+        ) : contentItems.length === 0 ? (
+          <View style={styles.statusCard}>
+            <Text style={styles.statusText}>No content found to display.</Text>
+          </View>
         ) : (
           <Swiper
             ref={swiperRef}
-            cards={movies}
+            cards={contentItems}
             renderCard={renderCard}
             cardIndex={0}
             backgroundColor="transparent"
@@ -117,12 +153,12 @@ export default function MatchScreen({ navigation }) {
               },
             }}
             onSwipedRight={() => {
-              console.log('Beğenildi');
-              showToast('Film Beğenildi!');
+              console.log('Liked');
+              showToast(mode === 'tv' ? 'Series liked!' : 'Movie liked!');
             }}
             onSwipedLeft={() => {
-              console.log('Beğenilmedi');
-              showToast('Film Beğenilmedi!');
+              console.log('Disliked');
+              showToast(mode === 'tv' ? 'Series disliked!' : 'Movie disliked!');
             }}
             animateCardOpacity
             animateOverlayLabelsOpacity
@@ -133,19 +169,19 @@ export default function MatchScreen({ navigation }) {
 
       <View style={styles.actions}>
         <TouchableOpacity style={styles.actionButton} onPress={() => swiperRef.current?.swipeLeft()}>
-          <Text style={styles.actionText}>Beğenmedim (X)</Text>
+          <Text style={styles.actionText}>Dislike (X)</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
           style={[styles.actionButton, styles.likeButton]}
           onPress={() => swiperRef.current?.swipeRight()}
         >
-          <Text style={styles.actionText}>Beğendim (Kalp)</Text>
+          <Text style={styles.actionText}>Like (Heart)</Text>
         </TouchableOpacity>
       </View>
 
       <TouchableOpacity style={styles.cancelButton} onPress={() => navigation.navigate('Home')}>
-        <Text style={styles.cancelButtonText}>Vazgeç</Text>
+        <Text style={styles.cancelButtonText}>Cancel</Text>
       </TouchableOpacity>
 
       {toastMessage ? (
@@ -248,6 +284,33 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 14,
     fontWeight: '600',
+  },
+  statusCard: {
+    width: '100%',
+    maxWidth: 320,
+    backgroundColor: '#1D1D1D',
+    borderRadius: 16,
+    paddingHorizontal: 18,
+    paddingVertical: 22,
+    alignItems: 'center',
+  },
+  statusText: {
+    color: '#FFFFFF',
+    fontSize: 15,
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+  retryButton: {
+    marginTop: 14,
+    backgroundColor: '#8B3DFF',
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 10,
+  },
+  retryButtonText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '700',
   },
   overlayBadge: {
     borderWidth: 3,
