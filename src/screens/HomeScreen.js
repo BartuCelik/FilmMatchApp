@@ -1,8 +1,12 @@
-import React from 'react';
+import React, { useMemo, useState } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 
 export default function HomeScreen({ navigation }) {
+  // Keep the username in local state before room setup.
+  const [username, setUsername] = useState('');
+  const isCreateRoomDisabled = useMemo(() => username.trim().length === 0, [username]);
+
   return (
     <View style={styles.container}>
       <Text style={styles.title}>FILM MATCH</Text>
@@ -10,12 +14,19 @@ export default function HomeScreen({ navigation }) {
       <View style={styles.content}>
         <TextInput
           style={styles.input}
-          placeholder="Adını yaz..."
+          placeholder="Enter your name..."
           placeholderTextColor="#9A9A9A"
+          value={username}
+          onChangeText={setUsername}
         />
 
-        <TouchableOpacity style={styles.button} onPress={() => navigation.navigate('Match')}>
-          <Text style={styles.buttonText}>Oda Oluştur</Text>
+        {/* User must enter a name before moving to the next step. */}
+        <TouchableOpacity
+          style={[styles.button, isCreateRoomDisabled && styles.buttonDisabled]}
+          onPress={() => navigation.navigate('ModeSelection', { username: username.trim() })}
+          disabled={isCreateRoomDisabled}
+        >
+          <Text style={styles.buttonText}>Create Room</Text>
         </TouchableOpacity>
       </View>
 
@@ -59,6 +70,9 @@ const styles = StyleSheet.create({
     paddingVertical: 15,
     borderRadius: 14,
     alignItems: 'center',
+  },
+  buttonDisabled: {
+    opacity: 0.45,
   },
   buttonText: {
     color: '#FFFFFF',
