@@ -9,7 +9,8 @@ import {
   serverTimestamp,
   query,
   where,
-  getDocs 
+  getDocs,
+  writeBatch,
 } from "firebase/firestore";
 
 // 1. Yeni bir 6 haneli oda oluştur
@@ -66,6 +67,42 @@ export const updateCurationResponses = async (sessionId, userId, curationPayload
       ...curationPayload,
       submittedAt: serverTimestamp(),
     },
+  });
+};
+
+/**
+ * Gemini havuzunu kaydet: `sessions/{sessionId}/movies/pool` + oturum belgesinde `movies`
+ * (mevcut `subscribeToSession` dinleyicisi için).
+ * @param {string} sessionId
+ * @param {Array<{ title: string, tmdbId: number, reason: string }>} moviesArray
+ */
+export const setSessionMoviePool = async (sessionId, moviesArray) => {
+  const sessionRef = doc(db, "sessions", sessionId);
+  const poolRef = doc(db, "sessions", sessionId, "movies", "pool");
+  const batch = writeBatch(db);
+  batch.set(
+    poolRef,
+    { items: moviesArray, updatedAt: serverTimestamp() },
+    { merge: true },
+  );
+  batch.update(sessionRef, {
+    movies: moviesArray,
+    aiCurationPipelineQueuedAt: serverTimestamp(),
+    aiMoviePoolGeneratedAt: serverTimestamp(),
+  });
+  await batch.commit();
+};
+
+/**
+ * Kürasyon sonrası 8 filmlik `moviePool` (Firestore: dizi, elemanları map: id, title, posterPath, source).
+ * @param {string} sessionId
+ * @param {Array<{ id: string, title: string, posterPath: string, source: string }>} moviePoolArray
+ */
+export const saveSessionMoviePool = async (sessionId, moviePoolArray) => {
+  await updateDoc(doc(db, "sessions", sessionId), {
+    moviePool: moviePoolArray,
+    aiCurationPipelineQueuedAt: serverTimestamp(),
+    aiMoviePoolGeneratedAt: serverTimestamp(),
   });
 };
 

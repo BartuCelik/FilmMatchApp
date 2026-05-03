@@ -17,10 +17,14 @@ import { AppText } from '../components/common/AppText';
 import { GradientEnergySlider } from '../components/common/GradientEnergySlider';
 import { Colors } from '../constants/Colors';
 import { auth } from '../services/firebaseConfig';
-import { prepareCurationAiTrigger } from '../services/aiService';
+import { generateCuratedFilmMatchPool } from '../services/api/aiService';
 import { isSessionDisbanded, requestDisbandNavigation } from '../hooks/useSessionDisbandSync';
 import { useMergedRouteParams } from '../services/navigationService';
-import { subscribeToSession, updateCurationResponses } from '../services/sessionService';
+import {
+  subscribeToSession,
+  updateCurationResponses,
+  saveSessionMoviePool,
+} from '../services/sessionService';
 
 const STEPS = 3;
 const MOOD_PRESETS = [
@@ -55,7 +59,7 @@ export default function AiCurationQuestionsScreen({ navigation, route }) {
   const [submitError, setSubmitError] = useState('');
   const [wizardDone, setWizardDone] = useState(false);
   const [hostPipelineStarted, setHostPipelineStarted] = useState(false);
-  const aiTriggerRef = useRef(false);
+  const moviePoolHostRanRef = useRef(false);
   const scrollViewRef = useRef(null);
   const moodInputRef = useRef(null);
   const redLinesInputRef = useRef(null);
@@ -131,19 +135,23 @@ export default function AiCurationQuestionsScreen({ navigation, route }) {
   );
 
   useEffect(() => {
-    if (!wizardDone || !sessionId || !isHost || aiTriggerRef.current) return;
+    if (!sessionId || !isHost || !sessionSnap) return;
     if (!allParticipantsHaveResponses(participants, curationResponses)) return;
+    const existing = sessionSnap.moviePool;
+    if (Array.isArray(existing) && existing.length > 0) return;
+    if (moviePoolHostRanRef.current) return;
 
-    aiTriggerRef.current = true;
+    moviePoolHostRanRef.current = true;
     (async () => {
       try {
-        await prepareCurationAiTrigger(sessionId);
+        const pool = await generateCuratedFilmMatchPool({ curationResponses, participants });
+        await saveSessionMoviePool(sessionId, pool);
         setHostPipelineStarted(true);
       } catch {
-        aiTriggerRef.current = false;
+        moviePoolHostRanRef.current = false;
       }
     })();
-  }, [wizardDone, sessionId, isHost, participants, curationResponses]);
+  }, [sessionId, isHost, sessionSnap, participants, curationResponses]);
 
   const progress = (currentStep + 1) / STEPS;
 
@@ -364,7 +372,7 @@ export default function AiCurationQuestionsScreen({ navigation, route }) {
 
             {wizardDone && isHost && hostPipelineStarted ? (
               <AppText variant="success" style={styles.success}>
-                Her iki cevap alındı. AI pipeline tetiklendi.
+                Her iki cevap alındı. Film havuzu oluşturuldu ve kaydedildi.
               </AppText>
             ) : null}
 
