@@ -18,6 +18,7 @@ import { GradientEnergySlider } from '../components/common/GradientEnergySlider'
 import { Colors } from '../constants/Colors';
 import { auth } from '../services/firebaseConfig';
 import { prepareCurationAiTrigger } from '../services/aiService';
+import { isSessionDisbanded, requestDisbandNavigation } from '../hooks/useSessionDisbandSync';
 import { useMergedRouteParams } from '../services/navigationService';
 import { subscribeToSession, updateCurationResponses } from '../services/sessionService';
 
@@ -38,7 +39,7 @@ function allParticipantsHaveResponses(participants, responses) {
   return participants.every((uid) => r[uid] != null);
 }
 
-export default function AiCurationQuestionsScreen({ route }) {
+export default function AiCurationQuestionsScreen({ navigation, route }) {
   const merged = useMergedRouteParams(route);
   const { username = '', sessionId } = merged;
   const userId = auth.currentUser?.uid ?? null;
@@ -62,6 +63,7 @@ export default function AiCurationQuestionsScreen({ route }) {
   const keyboardHeightRef = useRef(0);
   const activeFieldRef = useRef(null);
   const scrollScheduleRef = useRef(null);
+  const disbandRef = useRef(false);
   const insets = useSafeAreaInsets();
 
   const runScrollFieldIntoView = useCallback(() => {
@@ -93,8 +95,14 @@ export default function AiCurationQuestionsScreen({ route }) {
 
   useEffect(() => {
     if (!sessionId) return undefined;
-    return subscribeToSession(sessionId, setSessionSnap);
-  }, [sessionId]);
+    disbandRef.current = false;
+    return subscribeToSession(sessionId, (data) => {
+      setSessionSnap(data);
+      if (isSessionDisbanded(data)) {
+        requestDisbandNavigation(navigation, disbandRef);
+      }
+    });
+  }, [sessionId, navigation]);
 
   useEffect(() => {
     const showEv = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';

@@ -575,8 +575,67 @@ import * as Haptics from 'expo-haptics';
 import MovieCard from '../components/MovieCard/MovieCard';
 import DetailModal from '../components/DetailModal/DetailModal';
 import ActionButtons from '../components/ActionButtons/ActionButtons';
+import { useSessionDisbandSync } from '../hooks/useSessionDisbandSync';
+import { Colors } from '../constants/Colors';
 import { fetchContent, fetchContentDetails } from '../services/api';
 import { getScreenRouteParams } from '../services/navigationService';
+
+const SWIPE_OVERLAY_LABELS = {
+  left: {
+    title: '❌ DISLIKE',
+    style: {
+      label: {
+        fontSize: 26,
+        fontWeight: '900',
+        color: Colors.errorSoft,
+        letterSpacing: 1,
+        textShadowColor: Colors.glowError,
+        textShadowOffset: { width: 0, height: 0 },
+        textShadowRadius: 16,
+        borderWidth: 2,
+        borderColor: Colors.errorSoft,
+        borderRadius: 14,
+        paddingVertical: 10,
+        paddingHorizontal: 14,
+        overflow: 'visible',
+      },
+      wrapper: {
+        flex: 1,
+        alignItems: 'flex-start',
+        justifyContent: 'flex-start',
+        paddingTop: 28,
+        paddingLeft: 20,
+      },
+    },
+  },
+  right: {
+    title: '❤️ LIKE',
+    style: {
+      label: {
+        fontSize: 26,
+        fontWeight: '900',
+        color: Colors.matchBright,
+        letterSpacing: 1,
+        textShadowColor: Colors.glowGreenStrong,
+        textShadowOffset: { width: 0, height: 0 },
+        textShadowRadius: 18,
+        borderWidth: 2,
+        borderColor: Colors.matchBright,
+        borderRadius: 14,
+        paddingVertical: 10,
+        paddingHorizontal: 14,
+        overflow: 'visible',
+      },
+      wrapper: {
+        flex: 1,
+        alignItems: 'flex-end',
+        justifyContent: 'flex-start',
+        paddingTop: 28,
+        paddingRight: 20,
+      },
+    },
+  },
+};
 
 /** 
  * Yardımcı Fonksiyonlar 
@@ -601,6 +660,8 @@ const getScoreColor = (score) => (score >= 7.5 ? '#3DDC84' : score >= 5 ? '#F4C5
 function ScoreRing({ score }) {
   const size = 52;
   const strokeWidth = 5;
+  const cx = size / 2;
+  const cy = size / 2;
   const radius = (size - strokeWidth) / 2;
   const circumference = 2 * Math.PI * radius;
   const value = Math.max(0, Math.min(10, Number(score) || 0));
@@ -609,19 +670,18 @@ function ScoreRing({ score }) {
   return (
     <View style={localStyles.scoreRingWrap}>
       <Svg width={size} height={size}>
-        <Circle stroke="rgba(255,255,255,0.2)" fill="transparent" cx={size / 2} cy={size / 2} r={radius} strokeWidth={strokeWidth} />
+        <Circle stroke="rgba(255,255,255,0.2)" fill="transparent" cx={cx} cy={cy} r={radius} strokeWidth={strokeWidth} />
         <Circle
           stroke={getScoreColor(value)}
           fill="transparent"
-          cx={size / 2}
-          cy={size / 2}
+          cx={cx}
+          cy={cy}
           r={radius}
           strokeWidth={strokeWidth}
           strokeDasharray={`${circumference} ${circumference}`}
           strokeDashoffset={offset}
           strokeLinecap="round"
-          rotation="-90"
-          origin={`${size / 2}, ${size / 2}`}
+          transform={`rotate(-90 ${cx} ${cy})`}
         />
       </Svg>
       <View style={localStyles.scoreRingCenter}>
@@ -639,6 +699,8 @@ export default function MatchScreen({ navigation, route }) {
   const merged = getScreenRouteParams(route);
   const mode = merged.mode || 'movie';
   const category = merged.category || 'popular';
+
+  useSessionDisbandSync(navigation, merged.sessionId);
 
   const swiperRef = useRef(null);
   const actionSourceRef = useRef(null);
@@ -751,7 +813,7 @@ export default function MatchScreen({ navigation, route }) {
 
       <View style={localStyles.swiperWrap}>
         {loading ? (
-          <ActivityIndicator size="large" color="#8B3DFF" />
+          <ActivityIndicator size="large" color={Colors.indigo} />
         ) : loadError ? (
           <View style={localStyles.status}>
             <Text style={localStyles.statusText}>Could not load content.</Text>
@@ -789,6 +851,7 @@ export default function MatchScreen({ navigation, route }) {
             onSwipedLeft={onSwipedLeft}
             animateCardOpacity
             animateOverlayLabelsOpacity
+            overlayLabels={SWIPE_OVERLAY_LABELS}
             verticalSwipe={false}
           />
         )}

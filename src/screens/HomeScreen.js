@@ -3,14 +3,17 @@ import { StatusBar } from 'expo-status-bar';
 import {
   KeyboardAvoidingView,
   Platform,
+  ScrollView,
   StyleSheet,
   TextInput,
+  TouchableOpacity,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { signInAnonymously } from 'firebase/auth';
 import { AppButton } from '../components/common/AppButton';
 import { AppText } from '../components/common/AppText';
+import { AVATAR_CHOICES } from '../constants/avatars';
 import { Colors } from '../constants/Colors';
 import { auth } from '../services/firebaseConfig';
 import { setSessionParams } from '../services/navigationService';
@@ -25,25 +28,27 @@ async function ensureAnonymousUser() {
 export default function HomeScreen({ navigation }) {
   const [username, setUsername] = useState('');
   const [joinCode, setJoinCode] = useState('');
+  const [selectedAvatarId, setSelectedAvatarId] = useState(null);
   const [pendingAction, setPendingAction] = useState(null);
   const [error, setError] = useState('');
 
   const trimmedName = username.trim();
   const isBusy = pendingAction !== null;
-  const createDisabled = trimmedName.length === 0 || isBusy;
-  const joinDisabled = joinCode.length !== 6 || isBusy;
+  const createDisabled = trimmedName.length === 0 || selectedAvatarId == null || isBusy;
+  const joinDisabled = joinCode.length !== 6 || selectedAvatarId == null || isBusy;
 
   const handleCreateSession = async () => {
-    if (trimmedName.length === 0 || pendingAction) return;
+    if (trimmedName.length === 0 || selectedAvatarId == null || pendingAction) return;
     setError('');
     setPendingAction('create');
     try {
       const user = await ensureAnonymousUser();
-      const { sessionId, sessionCode } = await createMatchSession(user.uid);
+      const { sessionId, sessionCode } = await createMatchSession(user.uid, selectedAvatarId);
       setSessionParams({
         username: trimmedName,
         sessionId,
         code: sessionCode,
+        avatarId: selectedAvatarId,
       });
       navigation.navigate('ModeSelection');
     } catch (e) {
@@ -54,16 +59,17 @@ export default function HomeScreen({ navigation }) {
   };
 
   const handleJoinSession = async () => {
-    if (joinCode.length !== 6 || pendingAction) return;
+    if (joinCode.length !== 6 || selectedAvatarId == null || pendingAction) return;
     setError('');
     setPendingAction('join');
     try {
       const user = await ensureAnonymousUser();
-      const sessionId = await joinMatchSession(user.uid, joinCode);
+      const sessionId = await joinMatchSession(user.uid, joinCode, selectedAvatarId);
       setSessionParams({
         username: trimmedName || 'Misafir',
         sessionId,
         code: joinCode,
+        avatarId: selectedAvatarId,
       });
       navigation.navigate('ModeSelection');
     } catch (e) {
@@ -94,6 +100,32 @@ export default function HomeScreen({ navigation }) {
               onChangeText={setUsername}
               editable={!isBusy}
             />
+
+            <AppText variant="caption" style={styles.avatarSectionLabel}>
+              Avatarını seç
+            </AppText>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.avatarScroll}
+            >
+              {AVATAR_CHOICES.map((a) => {
+                const selected = selectedAvatarId === a.id;
+                return (
+                  <TouchableOpacity
+                    key={a.id}
+                    style={[styles.avatarBubble, selected && styles.avatarBubbleSelected]}
+                    onPress={() => setSelectedAvatarId(a.id)}
+                    activeOpacity={0.85}
+                    disabled={isBusy}
+                  >
+                    <AppText variant="body" style={styles.avatarEmoji}>
+                      {a.emoji}
+                    </AppText>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
 
             <AppButton
               title="Oda Kur"
@@ -165,6 +197,45 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     borderRadius: 14,
     fontSize: 16,
+  },
+  avatarSectionLabel: {
+    marginTop: 18,
+    marginBottom: 10,
+    color: Colors.textSecondary,
+  },
+  avatarScroll: {
+    paddingVertical: 4,
+    gap: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  avatarBubble: {
+    width: 58,
+    height: 58,
+    borderRadius: 29,
+    backgroundColor: Colors.surfaceElevated,
+    borderWidth: 2,
+    borderColor: Colors.borderLight,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+    shadowColor: Colors.glowIndigo,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.35,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  avatarBubbleSelected: {
+    borderColor: Colors.indigoLight,
+    backgroundColor: Colors.indigoTrack,
+    shadowColor: Colors.indigoGlow,
+    shadowOpacity: 0.85,
+    shadowRadius: 14,
+    elevation: 8,
+  },
+  avatarEmoji: {
+    fontSize: 28,
+    color: Colors.textPrimary,
   },
   sectionLabel: {
     marginTop: 22,

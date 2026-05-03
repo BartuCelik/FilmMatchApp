@@ -9,7 +9,9 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { AppText } from '../components/common/AppText';
+import { getAvatarEmoji } from '../constants/avatars';
 import { Colors } from '../constants/Colors';
+import { isSessionDisbanded, requestDisbandNavigation } from '../hooks/useSessionDisbandSync';
 import { getSessionParams, setSessionParams, useMergedRouteParams } from '../services/navigationService';
 import { setSessionSelectedMode, subscribeToSession } from '../services/sessionService';
 
@@ -35,9 +37,11 @@ export default function ModeSelectionScreen({ navigation, route }) {
   const merged = useMergedRouteParams(route);
   const { username = '', sessionId, code } = merged;
   const lastNavigatedModeRef = useRef(null);
+  const disbandRef = useRef(false);
 
   const [isPartnerReady, setIsPartnerReady] = useState(() => !sessionId);
   const [syncError, setSyncError] = useState('');
+  const [sessionSocial, setSessionSocial] = useState({ participants: [], avatars: {} });
 
   useEffect(() => {
     const latest = { ...getSessionParams(), ...(route?.params || {}) };
@@ -47,12 +51,23 @@ export default function ModeSelectionScreen({ navigation, route }) {
     }
 
     lastNavigatedModeRef.current = null;
+    disbandRef.current = false;
 
     const unsubscribe = subscribeToSession(latest.sessionId, (data) => {
       if (!data) {
         setIsPartnerReady(false);
         return;
       }
+
+      if (isSessionDisbanded(data)) {
+        requestDisbandNavigation(navigation, disbandRef);
+        return;
+      }
+
+      setSessionSocial({
+        participants: Array.isArray(data.participants) ? data.participants : [],
+        avatars: data.avatars && typeof data.avatars === 'object' ? data.avatars : {},
+      });
 
       const participants = data.participants;
       setIsPartnerReady(Array.isArray(participants) && participants.length === 2);
@@ -66,6 +81,7 @@ export default function ModeSelectionScreen({ navigation, route }) {
         username: p.username ?? '',
         sessionId: p.sessionId,
         code: p.code,
+        avatarId: p.avatarId,
       };
 
       if (selectedMode === 'ai') {
@@ -123,6 +139,28 @@ export default function ModeSelectionScreen({ navigation, route }) {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
+          {sessionId ? (
+            <View style={styles.partnerStrip}>
+              {sessionSocial.participants.map((uid) => (
+                <View key={uid} style={styles.partnerAvatarWrap}>
+                  <View style={styles.partnerAvatarRing}>
+                    <AppText variant="body" style={styles.partnerAvatarEmoji}>
+                      {getAvatarEmoji(sessionSocial.avatars[uid])}
+                    </AppText>
+                  </View>
+                </View>
+              ))}
+            </View>
+          ) : null}
+
+          {sessionId ? (
+            <View style={styles.tipCard}>
+              <AppText variant="bodyStrong" style={styles.tipText}>
+                İkinizden birinin seçim yapması yeterlidir
+              </AppText>
+            </View>
+          ) : null}
+
           <AppText variant="title" style={styles.title}>
             Choose Mode
           </AppText>
@@ -174,6 +212,55 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     paddingTop: 24,
     paddingBottom: 32,
+  },
+  partnerStrip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 20,
+    marginBottom: 16,
+  },
+  partnerAvatarWrap: {
+    alignItems: 'center',
+  },
+  partnerAvatarRing: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: Colors.surfaceElevated,
+    borderWidth: 2,
+    borderColor: Colors.indigoLight,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: Colors.glowIndigoStrong,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.9,
+    shadowRadius: 12,
+    elevation: 10,
+  },
+  partnerAvatarEmoji: {
+    fontSize: 30,
+    color: Colors.textPrimary,
+  },
+  tipCard: {
+    marginBottom: 20,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderRadius: 16,
+    backgroundColor: Colors.surfaceCard,
+    borderWidth: 1,
+    borderColor: Colors.indigoMuted,
+    shadowColor: Colors.glowIndigo,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.55,
+    shadowRadius: 14,
+    elevation: 6,
+  },
+  tipText: {
+    textAlign: 'center',
+    color: Colors.textOnAccent,
+    fontSize: 14,
+    lineHeight: 20,
   },
   title: {
     color: Colors.textPrimary,
