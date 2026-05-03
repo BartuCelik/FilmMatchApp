@@ -576,6 +576,7 @@ import MovieCard from '../components/MovieCard/MovieCard';
 import DetailModal from '../components/DetailModal/DetailModal';
 import ActionButtons from '../components/ActionButtons/ActionButtons';
 import { fetchContent, fetchContentDetails } from '../services/api';
+import { getScreenRouteParams } from '../services/navigationService';
 
 /** 
  * Yardımcı Fonksiyonlar 
@@ -635,8 +636,9 @@ function ScoreRing({ score }) {
  */
 
 export default function MatchScreen({ navigation, route }) {
-  const mode = route?.params?.mode || 'movie';
-  const category = route?.params?.category || 'popular';
+  const merged = getScreenRouteParams(route);
+  const mode = merged.mode || 'movie';
+  const category = merged.category || 'popular';
 
   const swiperRef = useRef(null);
   const actionSourceRef = useRef(null);

@@ -1,14 +1,14 @@
 import axios from 'axios';
 
-const API_KEY = EXPO_PUBLIC_TMDB_API_KEY;
-const BASE_URL = 'https://api.themoviedb.org/3';
-const IMAGE_BASE_URL = 'https://image.tmdb.org/t/p/w500';
-const ALT_IMAGE_BASE_URL = 'https://www.themoviedb.org/t/p/w500';
-const FALLBACK_IMAGE = 'https://picsum.photos/400/600';
+const API_KEY = process.env.EXPO_PUBLIC_TMDB_API_KEY;
+const BASE_URL = process.env.EXPO_PUBLIC_TMDB_API_URL || 'https://api.themoviedb.org/3';
+const IMAGE_BASE_URL = process.env.EXPO_PUBLIC_TMDB_IMAGE_BASE_URL || 'https://image.tmdb.org/t/p/w500';
+const ALT_IMAGE_BASE_URL = process.env.EXPO_PUBLIC_TMDB_ALT_IMAGE_BASE_URL || 'https://www.themoviedb.org/t/p/w500';
+const FALLBACK_IMAGE = process.env.EXPO_PUBLIC_TMDB_FALLBACK_IMAGE || 'https://picsum.photos/400/600';
 const SUPPORTED_TYPES = ['movie', 'tv'];
 const SUPPORTED_CATEGORIES = ['popular', 'top_rated'];
-const PROVIDER_LOGO_BASE_URL = 'https://image.tmdb.org/t/p/w92';
-const PROFILE_IMAGE_BASE_URL = 'https://image.tmdb.org/t/p/w185';
+const PROVIDER_LOGO_BASE_URL = process.env.EXPO_PUBLIC_TMDB_PROVIDER_LOGO_BASE_URL || 'https://image.tmdb.org/t/p/w92';
+const PROFILE_IMAGE_BASE_URL = process.env.EXPO_PUBLIC_TMDB_PROFILE_IMAGE_BASE_URL || 'https://image.tmdb.org/t/p/w185';
 
 // Convert movie and TV objects into one shared app model.
 const normalizeContentItem = (item, type) => {
@@ -53,7 +53,12 @@ export const fetchContent = async (type, category = 'popular') => {
       timeout: 10000,
     });
 
-    return response.data.results.map((item) => normalizeContentItem(item, type));
+    const results = response.data?.results;
+    if (!Array.isArray(results)) {
+      console.error(`Failed to fetch ${type}/${category}: invalid response shape`, response.data);
+      return [];
+    }
+    return results.map((item) => normalizeContentItem(item, type));
   } catch (error) {
     console.error(`Failed to fetch ${type}/${category} content:`, error?.message || error);
     return [];

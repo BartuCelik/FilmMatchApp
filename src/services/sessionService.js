@@ -1,4 +1,4 @@
-import { db } from './firebaseconfig';
+import { db } from './firebaseConfig';
 import { 
   collection, 
   addDoc, 
@@ -48,7 +48,21 @@ export const joinMatchSession = async (userId, inputCode) => {
 
 // 3. Gerçek zamanlı dinleyici (Real-time Match Tracker)
 export const subscribeToSession = (sessionId, callback) => {
-  return onSnapshot(doc(db, "sessions", sessionId), (doc) => {
-    callback(doc.data());
+  return onSnapshot(doc(db, "sessions", sessionId), (docSnap) => {
+    callback(docSnap.exists() ? docSnap.data() : null);
+  });
+};
+
+export const setSessionSelectedMode = async (sessionId, selectedMode) => {
+  await updateDoc(doc(db, "sessions", sessionId), { selectedMode });
+};
+
+/** Tek yazıda kullanıcıya özel kürasyon cevapları (wizard son adımı). */
+export const updateCurationResponses = async (sessionId, userId, curationPayload) => {
+  await updateDoc(doc(db, "sessions", sessionId), {
+    [`curationResponses.${userId}`]: {
+      ...curationPayload,
+      submittedAt: serverTimestamp(),
+    },
   });
 };
