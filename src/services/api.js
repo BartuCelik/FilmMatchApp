@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_KEY = process.env.EXPO_PUBLIC_TMDB_API_KEY;
+const API_KEY = EXPO_PUBLIC_TMDB_API_KEY;
 const BASE_URL = 'https://api.themoviedb.org/3';
 const IMAGE_BASE_URL = 'https://image.tmdb.org/t/p/w500';
 const ALT_IMAGE_BASE_URL = 'https://www.themoviedb.org/t/p/w500';
