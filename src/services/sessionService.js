@@ -13,9 +13,9 @@ import {
 } from "firebase/firestore";
 
 // 1. Yeni bir 6 haneli oda oluştur
-export const createMatchSession = async (hostId) => {
+export const createMatchSession = async (hostId, avatarId) => {
   const sessionCode = Math.floor(100000 + Math.random() * 900000).toString();
-  
+
   const sessionData = {
     code: sessionCode,
     hostId: hostId,
@@ -23,7 +23,8 @@ export const createMatchSession = async (hostId) => {
     status: "waiting", // waiting, active, matched
     createdAt: serverTimestamp(),
     swipes: {}, // { userId: { movieId: 'like' | 'dislike' } }
-    matches: []
+    matches: [],
+    avatars: { [hostId]: avatarId },
   };
 
   const docRef = await addDoc(collection(db, "sessions"), sessionData);
@@ -31,7 +32,7 @@ export const createMatchSession = async (hostId) => {
 };
 
 // 2. Kodu girerek odaya katıl
-export const joinMatchSession = async (userId, inputCode) => {
+export const joinMatchSession = async (userId, inputCode, avatarId) => {
   const q = query(collection(db, "sessions"), where("code", "==", inputCode), where("status", "==", "waiting"));
   const querySnapshot = await getDocs(q);
 
@@ -39,7 +40,8 @@ export const joinMatchSession = async (userId, inputCode) => {
     const sessionDoc = querySnapshot.docs[0];
     await updateDoc(doc(db, "sessions", sessionDoc.id), {
       participants: arrayUnion(userId),
-      status: "active" // İkinci kişi geldiğinde süreç başlar
+      status: "active", // İkinci kişi geldiğinde süreç başlar
+      [`avatars.${userId}`]: avatarId,
     });
     return sessionDoc.id;
   }
@@ -64,5 +66,13 @@ export const updateCurationResponses = async (sessionId, userId, curationPayload
       ...curationPayload,
       submittedAt: serverTimestamp(),
     },
+  });
+};
+
+/** Oturumu sonlandır: partnerlere isDisbanded + status senkronu. */
+export const disbandSession = async (sessionId) => {
+  await updateDoc(doc(db, "sessions", sessionId), {
+    isDisbanded: true,
+    status: "closed",
   });
 };

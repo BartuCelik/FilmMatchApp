@@ -73,6 +73,11 @@ const styles = StyleSheet.create({
   },
   primary: {
     backgroundColor: Colors.indigo,
+    shadowColor: Colors.glowIndigoStrong,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.45,
+    shadowRadius: 12,
+    elevation: 8,
   },
   secondary: {
     backgroundColor: Colors.surfaceMuted,

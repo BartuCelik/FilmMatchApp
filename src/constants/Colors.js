@@ -36,4 +36,11 @@ export const Colors = {
   overlay: 'rgba(0, 0, 0, 0.55)',
   trackUnderlay: '#242424',
   sliderMaxTrack: 'rgba(13, 13, 13, 0.72)',
+
+  /** Soft glows (shadow / border) */
+  glowIndigo: 'rgba(99, 102, 241, 0.55)',
+  glowIndigoStrong: 'rgba(129, 140, 248, 0.85)',
+  glowGreen: 'rgba(34, 197, 94, 0.5)',
+  glowGreenStrong: 'rgba(74, 222, 128, 0.75)',
+  glowError: 'rgba(248, 113, 113, 0.55)',
 };

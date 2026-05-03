@@ -14,6 +14,8 @@ const getScoreColor = (score) => {
 function ScoreRing({ score }) {
   const size = 52;
   const strokeWidth = 5;
+  const cx = size / 2;
+  const cy = size / 2;
   const radius = (size - strokeWidth) / 2;
   const circumference = 2 * Math.PI * radius;
   const value = Math.max(0, Math.min(10, Number(score) || 0));
@@ -22,19 +24,18 @@ function ScoreRing({ score }) {
   return (
     <View style={styles.scoreWrap}>
       <Svg width={size} height={size}>
-        <Circle stroke="rgba(255,255,255,0.2)" fill="transparent" cx={size / 2} cy={size / 2} r={radius} strokeWidth={strokeWidth} />
+        <Circle stroke="rgba(255,255,255,0.2)" fill="transparent" cx={cx} cy={cy} r={radius} strokeWidth={strokeWidth} />
         <Circle
           stroke={getScoreColor(value)}
           fill="transparent"
-          cx={size / 2}
-          cy={size / 2}
+          cx={cx}
+          cy={cy}
           r={radius}
           strokeWidth={strokeWidth}
           strokeDasharray={`${circumference} ${circumference}`}
           strokeDashoffset={offset}
           strokeLinecap="round"
-          rotation="-90"
-          origin={`${size / 2}, ${size / 2}`}
+          transform={`rotate(-90 ${cx} ${cy})`}
         />
       </Svg>
       <View style={styles.scoreCenter}>
