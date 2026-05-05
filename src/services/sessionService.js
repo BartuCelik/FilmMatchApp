@@ -21,7 +21,8 @@ export const createMatchSession = async (hostId, avatarId) => {
     code: sessionCode,
     hostId: hostId,
     participants: [hostId],
-    status: "waiting", // waiting, active, matched
+    sessionStatus: "waiting_for_partner",
+    aiStatus: "idle",
     createdAt: serverTimestamp(),
     swipes: {}, // { userId: { movieId: 'like' | 'dislike' } }
     matches: [],
@@ -34,14 +35,18 @@ export const createMatchSession = async (hostId, avatarId) => {
 
 // 2. Kodu girerek odaya katıl
 export const joinMatchSession = async (userId, inputCode, avatarId) => {
-  const q = query(collection(db, "sessions"), where("code", "==", inputCode), where("status", "==", "waiting"));
+  const q = query(
+    collection(db, "sessions"),
+    where("code", "==", inputCode),
+    where("sessionStatus", "==", "waiting_for_partner"),
+  );
   const querySnapshot = await getDocs(q);
 
   if (!querySnapshot.empty) {
     const sessionDoc = querySnapshot.docs[0];
     await updateDoc(doc(db, "sessions", sessionDoc.id), {
       participants: arrayUnion(userId),
-      status: "active", // İkinci kişi geldiğinde süreç başlar
+      sessionStatus: "active", // İkinci kişi geldiğinde süreç başlar
       [`avatars.${userId}`]: avatarId,
     });
     return sessionDoc.id;
@@ -101,15 +106,16 @@ export const setSessionMoviePool = async (sessionId, moviesArray) => {
 export const saveSessionMoviePool = async (sessionId, moviePoolArray) => {
   await updateDoc(doc(db, "sessions", sessionId), {
     moviePool: moviePoolArray,
+    aiStatus: "ready",
     aiCurationPipelineQueuedAt: serverTimestamp(),
     aiMoviePoolGeneratedAt: serverTimestamp(),
   });
 };
 
-/** Oturumu sonlandır: partnerlere isDisbanded + status senkronu. */
+/** Oturumu sonlandır: partnerlere isDisbanded + sessionStatus senkronu. */
 export const disbandSession = async (sessionId) => {
   await updateDoc(doc(db, "sessions", sessionId), {
     isDisbanded: true,
-    status: "closed",
+    sessionStatus: "completed",
   });
 };

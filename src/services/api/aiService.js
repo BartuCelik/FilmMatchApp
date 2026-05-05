@@ -1,9 +1,25 @@
 import { GoogleGenerativeAI, SchemaType } from '@google/generative-ai';
+import { doc, getDoc, serverTimestamp, updateDoc } from 'firebase/firestore';
+import { db } from '../firebaseConfig';
 
 const DEFAULT_MODEL = 'gemini-2.0-flash';
+const AI_STATUS_GENERATING = 'generating';
+const AI_STATUS_READY = 'ready';
+const AI_STATUS_ERROR = 'error';
+
+const FALLBACK_MOCK_POOL = [
+  { id: '550', title: 'Fight Club', posterPath: '/pB8S7Sj941P6kyuSFWznG9S6YBR.jpg', source: 'common' },
+  { id: '27205', title: 'Inception', posterPath: '/edv5CZvWj09upOsy2Y6IwDhK8bt.jpg', source: 'common' },
+  { id: '157336', title: 'Interstellar', posterPath: '/gEU2QniE6E77NI6lCU6MxlNBvIx.jpg', source: 'userA' },
+  { id: '680', title: 'Pulp Fiction', posterPath: '/d5iIlFn5s0ImszYzBPb8JPIfbXD.jpg', source: 'userB' },
+  { id: '13', title: 'Forrest Gump', posterPath: '/arw2vcBveWOVZr6pxd9XTd1TdQa.jpg', source: 'common' },
+  { id: '278', title: 'The Shawshank Redemption', posterPath: '/q6y0Go1tsGEsmtFryDOJo3dEmqu.jpg', source: 'common' },
+  { id: '155', title: 'The Dark Knight', posterPath: '/qJ2tW6WMUDux911r6m7haRef0WH.jpg', source: 'userA' },
+  { id: '238', title: 'The Godfather', posterPath: '/3bhkrj58Vtu7enYsRolD1fZdja1.jpg', source: 'userB' },
+];
 
 const FILMMATCH_CURATOR_SYSTEM =
-  'Sen bir FilmMatchApp küratörüsün. Tam 8 film önerisi sunmalısın. %25 userA, %25 userB ve %50 common (ortak alan) kuralına uy. Çıktıyı sadece saf JSON array formatında ver: [{ "id": "string", "title": "string", "posterPath": "string", "source": "string" }]';
+  'Sen bir FilmMatchApp küratörüsün. Kullanıcıların o anki spesifik izleme isteğini, enerji seviyesini ve tür tercihlerini temel alarak kürasyon yap. Tam 8 film önerisi sunmalısın. %25 userA, %25 userB ve %50 common (ortak alan) kuralına uy. Çıktıyı sadece saf JSON array formatında ver: [{ "id": "string", "title": "string", "posterPath": "string", "source": "string" }]';
 
 const filmMatchMapEntrySchema = {
   type: SchemaType.OBJECT,
@@ -88,6 +104,18 @@ function assertSourceSplit(entries) {
   }
 }
 
+function isGeminiRateLimitError(error) {
+  const status = Number(error?.status ?? error?.code ?? error?.response?.status);
+  const message = String(error?.message ?? '').toLowerCase();
+  return (
+    status === 429 ||
+    message.includes('429') ||
+    message.includes('too many requests') ||
+    message.includes('rate limit') ||
+    message.includes('quota')
+  );
+}
+
 /**
  * @param {Record<string, unknown>} curationResponses
  * @param {string[]} participants en az 2 uid; [0]=userA, [1]=userB
@@ -147,7 +175,7 @@ export async function generateCuratedFilmMatchPool({ curationResponses, particip
   });
 
   const userText = [
-    'Aşağıdaki JSON iki kullanıcının moodText, energy ve redLinesText sinyalleridir.',
+    'Aşağıdaki JSON iki kullanıcının izleme isteği, enerji seviyesi ve redLinesText sinyalleridir.',
     'Gerçek TMDB filmleri kullan; posterPath alanına TMDB poster_path biçiminde değer koy (ör. /xxxx.jpg) veya bilinmiyorsa boş string.',
     'source alanları tam olarak 2 kez "userA", 2 kez "userB", 4 kez "common" olacak şekilde 8 öğe üret.',
     '',
@@ -171,4 +199,60 @@ export async function generateCuratedFilmMatchPool({ curationResponses, particip
   const normalized = parsed.map((row, i) => normalizeFilmMatchMapEntry(row, i));
   assertSourceSplit(normalized);
   return normalized;
+}
+
+/**
+ * Idempotent olarak AI moviePool üretir ve oturuma yazar.
+ * Mükerrer istekleri engeller; 429 durumunda mock data ile kurtarır.
+ * @param {string} sessionId
+ * @param {Record<string, unknown>} curationResponses
+ * @param {string[]} participants
+ */
+export async function fetchAIRecommendedMovies(
+  sessionId,
+  curationResponses,
+  participants,
+) {
+  const sessionRef = doc(db, 'sessions', sessionId);
+  const sessionSnap = await getDoc(sessionRef);
+  const sessionData = sessionSnap.data();
+
+  if (
+    !sessionSnap.exists() ||
+    !sessionData ||
+    (Array.isArray(sessionData.moviePool) && sessionData.moviePool.length > 0) ||
+    sessionData.aiStatus === AI_STATUS_GENERATING
+  ) {
+    return;
+  }
+
+  await updateDoc(sessionRef, { aiStatus: AI_STATUS_GENERATING });
+
+  try {
+    const aiPool = await generateCuratedFilmMatchPool({
+      curationResponses,
+      participants,
+    });
+    await updateDoc(sessionRef, {
+      moviePool: aiPool,
+      aiStatus: AI_STATUS_READY,
+      isMockData: false,
+      aiCurationPipelineQueuedAt: serverTimestamp(),
+      aiMoviePoolGeneratedAt: serverTimestamp(),
+    });
+  } catch (error) {
+    if (isGeminiRateLimitError(error)) {
+      await updateDoc(sessionRef, {
+        moviePool: FALLBACK_MOCK_POOL,
+        aiStatus: AI_STATUS_READY,
+        isMockData: true,
+        aiCurationPipelineQueuedAt: serverTimestamp(),
+        aiMoviePoolGeneratedAt: serverTimestamp(),
+      });
+      return;
+    }
+
+    await updateDoc(sessionRef, { aiStatus: AI_STATUS_ERROR });
+    throw error;
+  }
 }
