@@ -3,7 +3,7 @@ import { createStackNavigator } from '@react-navigation/stack';
 import HomeScreen from '../screens/HomeScreen';
 import JoinRoomCodeScreen from '../screens/JoinRoomCodeScreen';
 import ModeSelectionScreen from '../screens/ModeSelectionScreen';
-import MatchScreen from '../screens/MatchScreen';
+import SwipeScreen from '../screens/SwipeScreen';
 import AiCurationQuestionsScreen from '../screens/AiCurationQuestionsScreen';
 
 const Stack = createStackNavigator();
@@ -16,7 +16,7 @@ export default function AppNavigator() {
       <Stack.Screen name="JoinRoomCode" component={JoinRoomCodeScreen} />
       <Stack.Screen name="ModeSelection" component={ModeSelectionScreen} />
       <Stack.Screen name="AiCurationQuestions" component={AiCurationQuestionsScreen} />
-      <Stack.Screen name="Match" component={MatchScreen} />
+      <Stack.Screen name="Match" component={SwipeScreen} />
     </Stack.Navigator>
   );
 }

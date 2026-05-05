@@ -10,6 +10,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const STORAGE_THEME = '@filmmatch/theme';
 const STORAGE_LOCALE = '@filmmatch/locale';
+const SUPPORTED_LOCALES = ['tr', 'en', 'de', 'es', 'fr', 'it', 'ru'];
 
 const AppPreferencesContext = createContext(null);
 
@@ -27,7 +28,7 @@ export function AppPreferencesProvider({ children }) {
         ]);
         if (cancelled) return;
         if (t === 'light' || t === 'dark') setThemeState(t);
-        if (l === 'en' || l === 'tr') setLocaleState(l);
+        if (SUPPORTED_LOCALES.includes(l)) setLocaleState(l);
       } catch {
         /* ignore */
       }
@@ -52,7 +53,7 @@ export function AppPreferencesProvider({ children }) {
   }, []);
 
   const setLocale = useCallback((next) => {
-    if (next !== 'tr' && next !== 'en') return;
+    if (!SUPPORTED_LOCALES.includes(next)) return;
     setLocaleState(next);
     AsyncStorage.setItem(STORAGE_LOCALE, next).catch(() => {});
   }, []);

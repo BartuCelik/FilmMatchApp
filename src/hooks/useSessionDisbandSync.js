@@ -9,7 +9,7 @@ const ALERT_BODY = 'Partnerin oturumdan ayrıldı.';
 
 export function isSessionDisbanded(data) {
   if (!data) return false;
-  return data.isDisbanded === true || data.status === "closed";
+  return data.isDisbanded === true || data.sessionStatus === 'completed';
 }
 
 function resetToHome(navigation) {

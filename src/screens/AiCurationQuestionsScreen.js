@@ -17,13 +17,12 @@ import { AppText } from '../components/common/AppText';
 import { GradientEnergySlider } from '../components/common/GradientEnergySlider';
 import { Colors } from '../constants/Colors';
 import { auth } from '../services/firebaseConfig';
-import { generateCuratedFilmMatchPool } from '../services/api/aiService';
+import { fetchAIRecommendedMovies } from '../services/api/aiService';
 import { isSessionDisbanded, requestDisbandNavigation } from '../hooks/useSessionDisbandSync';
-import { useMergedRouteParams } from '../services/navigationService';
+import { setSessionParams, useMergedRouteParams } from '../services/navigationService';
 import {
   subscribeToSession,
   updateCurationResponses,
-  saveSessionMoviePool,
 } from '../services/sessionService';
 
 const STEPS = 3;
@@ -60,6 +59,7 @@ export default function AiCurationQuestionsScreen({ navigation, route }) {
   const [wizardDone, setWizardDone] = useState(false);
   const [hostPipelineStarted, setHostPipelineStarted] = useState(false);
   const moviePoolHostRanRef = useRef(false);
+  const aiReadyNavigatedRef = useRef(false);
   const scrollViewRef = useRef(null);
   const moodInputRef = useRef(null);
   const redLinesInputRef = useRef(null);
@@ -128,6 +128,7 @@ export default function AiCurationQuestionsScreen({ navigation, route }) {
   const hostId = sessionSnap?.hostId ?? null;
   const participants = sessionSnap?.participants;
   const curationResponses = sessionSnap?.curationResponses;
+  const aiStatus = sessionSnap?.aiStatus ?? 'idle';
 
   const isHost = useMemo(
     () => Boolean(userId && hostId && userId === hostId),
@@ -139,19 +140,27 @@ export default function AiCurationQuestionsScreen({ navigation, route }) {
     if (!allParticipantsHaveResponses(participants, curationResponses)) return;
     const existing = sessionSnap.moviePool;
     if (Array.isArray(existing) && existing.length > 0) return;
+    if (aiStatus === 'generating' || aiStatus === 'ready') return;
     if (moviePoolHostRanRef.current) return;
 
     moviePoolHostRanRef.current = true;
     (async () => {
       try {
-        const pool = await generateCuratedFilmMatchPool({ curationResponses, participants });
-        await saveSessionMoviePool(sessionId, pool);
+        await fetchAIRecommendedMovies(sessionId, curationResponses, participants);
         setHostPipelineStarted(true);
       } catch {
         moviePoolHostRanRef.current = false;
       }
     })();
-  }, [sessionId, isHost, sessionSnap, participants, curationResponses]);
+  }, [sessionId, isHost, sessionSnap, participants, curationResponses, aiStatus]);
+
+  useEffect(() => {
+    if (!sessionId || aiReadyNavigatedRef.current) return;
+    if (aiStatus !== 'ready') return;
+    aiReadyNavigatedRef.current = true;
+    setSessionParams({ ...merged, sessionId, username });
+    navigation.replace('Match');
+  }, [aiStatus, merged, navigation, sessionId, username]);
 
   const progress = (currentStep + 1) / STEPS;
 
@@ -240,8 +249,8 @@ export default function AiCurationQuestionsScreen({ navigation, route }) {
             <AppText variant="kicker" style={styles.kickerTint}>
               AI Kürasyon
             </AppText>
-            <AppText variant="screenTitle" style={styles.titleSpacing}>
-              {username ? `${username}, ` : ''}Tercihlerini keşfedelim
+            <AppText variant="screenTitle" style={styles.titleHero}>
+              {username ? `${username}, ` : ''}Let&apos;s pick
             </AppText>
 
             <View style={styles.progressTrack}>
@@ -253,7 +262,7 @@ export default function AiCurationQuestionsScreen({ navigation, route }) {
 
             {currentStep === 0 ? (
               <View style={styles.card}>
-                <AppText variant="section">Bugün nasıl bir ruh halindesin?</AppText>
+                <AppText variant="section">Hangi dunyada kaybolmaya hazirsin?</AppText>
                 <View style={styles.moodRow}>
                   {MOOD_PRESETS.map((m) => {
                     const active = moodPreset === m.key;
@@ -278,12 +287,12 @@ export default function AiCurationQuestionsScreen({ navigation, route }) {
                   })}
                 </View>
                 <AppText variant="caption" style={styles.fieldLabel}>
-                  İstersen kısaca yaz
+                  Bugun ne izlemek istiyorsun?
                 </AppText>
                 <TextInput
                   ref={moodInputRef}
                   style={styles.textArea}
-                  placeholder="Örn: Yumuşak, sıcak, komedi ağırlıklı..."
+                  placeholder="Orn: Gerilimli ama cok karanlik olmayan bir bilim kurgu..."
                   placeholderTextColor={Colors.textSubtle}
                   value={moodText}
                   onChangeText={setMoodText}
@@ -410,8 +419,11 @@ const styles = StyleSheet.create({
   kickerTint: {
     color: Colors.indigoLight,
   },
-  titleSpacing: {
+  titleHero: {
     marginTop: 8,
+    color: Colors.textPrimary,
+    fontWeight: '900',
+    letterSpacing: 0.2,
   },
   progressTrack: {
     marginTop: 22,
