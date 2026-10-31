@@ -1,63 +1,59 @@
-🎬 FilmMatchApp
-"Ne izlesek?" derdine son veren, AI destekli ve gerçek zamanlı film eşleşme platformu.
+# FilmMatch
 
-FilmMatchApp, çiftlerin ve arkadaş gruplarının film seçme sürecini bir "karar verme krizinden" eğlenceli bir deneyime dönüştürür. Tinder tarzı swipe (kaydırma) mekaniği ile Gemini AI kürasyonunu birleştirerek kullanıcılarına nokta atışı öneriler sunar.
+A mobile app that ends the "what should we watch?" argument. Two people join the same session from their own phones, answer three quick questions, and swipe through a shortlist built for both of them. When both swipe right on the same film, it's a match.
 
-🚀 Öne Çıkan Özellikler
-Guest-First Experience: Kayıt olma zorunluluğu yok. Anonim oturumlarla anında eşleşme.
+## How it works
 
-Real-time Synchronization: Firebase Firestore (onSnapshot) ile iki cihaz arasında SignalR hızında veri senkronizasyonu.
+1. **Start or join a session.** No sign-up: one person creates a session and shares a 6-digit code, the other joins with it. Sessions use anonymous Firebase auth.
+2. **Answer three questions.** Mood, energy level and deal-breakers, set by each person separately.
+3. **Get a shared pool.** Gemini builds the movie pool from both sets of answers: roughly a quarter leans to each person's taste and half sits on common ground. Posters and details come from TMDB.
+4. **Swipe.** Each vote is written to Firestore and both phones listen to the session in real time, so a mutual like shows up on both screens as soon as it happens.
 
-Controlled Discovery Algoritması: Gemini AI tarafından hazırlanan film havuzu; %25 Kullanıcı A, %25 Kullanıcı B ve %50 ortak zevk dengesiyle oluşturulur.
+## Tech stack
 
-Interactive Curation: Ruh hali (Mood), Enerji Seviyesi ve Kırmızı Çizgiler (Deal Breakers) üzerinden kişiselleştirilmiş 3 soruluk Wizard akışı.
+| Area        | Technology                                        |
+|-------------|---------------------------------------------------|
+| App         | React Native, Expo SDK 54                         |
+| Realtime    | Firebase Firestore (`onSnapshot` listeners), Firebase Auth (anonymous) |
+| AI curation | Google Gemini API with a structured JSON response schema, plus a fallback pool if the call fails |
+| Movie data  | TMDB API                                          |
+| UI          | Shared theme and color system, light/dark palettes, haptic feedback, i18n |
 
-Modern Cinema UI: Hugo Boss şıklığında, karanlık mod odaklı ve haptik geri bildirimli modern arayüz.
+## Project structure
 
-🛠 Teknik Stack
-Frontend: React Native (Expo SDK)
-
-Backend & Database: Firebase (Auth, Firestore)
-
-AI: Google Gemini AI API
-
-Data: TMDB (The Movie Database) API
-
-Styling: StyleSheet (Merkezi Renk ve Tipografi Sistemi)
-
-📁 Proje Yapısı
-Plaintext
+```
 src/
-├── components/      # Atomik UI bileşenleri (AppButton, AppText vb.)
-├── constants/       # Tema ve Renk paletleri (Colors.js)
-├── navigation/      # Merkezi navigasyon ve Session Store yönetimi
-├── screens/         # Uygulama ekranları (Home, ModeSelection, AiCuration...)
-├── services/        # Firebase, AI ve TMDB servis katmanları
-└── hooks/           # Özel React hook'ları (useSessionParams vb.)
-⚙️ Kurulum
-Repoyu klonlayın: git clone [https://github.com/kullaniciadi/filmmatchapp.git](https://github.com/kullaniciadi/filmmatchapp.git)
+  components/   Reusable UI (movie card, detail modal, buttons, sliders)
+  screens/      Welcome, home, join-by-code, mode selection, AI curation, swipe, match
+  services/     Firebase session logic, Gemini curation, TMDB client
+  hooks/        i18n, session disband sync
+  context/      App-wide preferences (theme, language)
+  navigation/   Stack navigator
+```
 
-Bağımlılıkları yükleyin: npm install veya npx expo install
+## Run it locally
 
-.env dosyasını oluşturun ve Firebase/TMDB/Gemini API anahtarlarınızı ekleyin:
+You need Node.js and the Expo Go app (or an emulator), plus your own Firebase project, TMDB API key and Gemini API key.
 
-Kod snippet'i
-EXPO_PUBLIC_FIREBASE_API_KEY=...
-EXPO_PUBLIC_TMDB_API_KEY=...
-EXPO_PUBLIC_GEMINI_API_KEY=...
-Uygulamayı başlatın: npx expo start
+```bash
+git clone https://github.com/BartuCelik/FilmMatchApp.git
+cd FilmMatchApp
+npm install
+cp .env.example .env    # fill in your Firebase, TMDB and Gemini keys
+npx expo start
+```
 
-🧭 Yol Haritası
-[x] Firebase & Auth Altyapısı
+## Status
 
-[x] 6 Haneli Kod ile Session Senkronizasyonu
+Personal side project, in progress.
 
-[x] UI/UX Refactor & Design System
+- [x] Anonymous sessions and joining by 6-digit code
+- [x] Three-question curation flow
+- [x] Gemini-built shared movie pool with fallback
+- [x] Real-time swiping with mutual-like detection
+- [ ] Match celebration screen and results summary
+- [ ] Sessions for groups larger than two
 
-[ ] Gemini AI Curation Pipeline (Sıradaki Adım!)
+---
 
-[ ] Match Screen Swipe Logic
-
-[ ] Perfect Match Animation & Results
-
-Developed by Bartu Celik
+Built by [Bartu Çelik](https://github.com/BartuCelik).
