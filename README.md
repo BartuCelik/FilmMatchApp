@@ -1,67 +1,70 @@
-Harika bir noktadayız Bartu! Projenin mimarisini ve UI/UX standartlarını bu kadar sağlam bir temele oturttuktan sonra, GitHub'a push yapmadan önce profesyonel bir README.md hazırlamak tam bir Software Specialist hamlesi olur. Bu dosya sadece projenin ne olduğunu değil, senin teknik vizyonunu ve "Controlled Discovery" gibi özgün algoritmaları nasıl kurguladığını da göstermeli.
+# 🎬 FilmMatchApp
 
-İşte FilmMatchApp için hazırladığım, hem teknik hem de vizyoner README taslağı. Bunu projenin kök dizinine ekleyebilirsin:
+"Ne izlesek?" sorusuna iki kişilik cevap: aynı odaya girin, filmleri sağa/sola kaydırın, ikinizin de beğendiği film eşleşme olsun.
 
-🎬 FilmMatchApp
-"Ne izlesek?" derdine son veren, AI destekli ve gerçek zamanlı film eşleşme platformu.
+## Özellikler
 
-FilmMatchApp, çiftlerin ve arkadaş gruplarının film seçme sürecini bir "karar verme krizinden" eğlenceli bir deneyime dönüştürür. Tinder tarzı swipe (kaydırma) mekaniği ile Gemini AI kürasyonunu birleştirerek kullanıcılarına nokta atışı öneriler sunar.
+- **Kayıtsız giriş**: Firebase anonim oturum, isim + avatar yeterli.
+- **6 haneli oda kodu**: Biri odayı kurar, diğeri kodla katılır; her şey Firestore üzerinden gerçek zamanlı senkron.
+- **Modlar**
+  - **Film / Dizi**: TMDB popüler ve en yüksek puanlı listeleri.
+  - **AI Kürasyon**: İki kişi de ruh hali, enerji seviyesi ve kırmızı çizgilerini girer; Claude (Haiku 5.5) ikinize özel 8 filmlik bir havuz hazırlar (2 sizin, 2 partnerinizin, 4 ortak zevk). Filmler TMDB'de doğrulanır, posterler ve izleme platformları gerçek veridir.
+- **Eşleşme**: İkinizin de sağa kaydırdığı filmler anında bildirilir.
+- **Tema ve dil**: Açık/koyu tema; TR, EN, DE, ES, FR, IT, RU.
 
-🚀 Öne Çıkan Özellikler
-Guest-First Experience: Kayıt olma zorunluluğu yok. Anonim oturumlarla anında eşleşme.
+## Teknik yapı
 
-Real-time Synchronization: Firebase Firestore (onSnapshot) ile iki cihaz arasında SignalR hızında veri senkronizasyonu.
+| Katman | Teknoloji |
+|---|---|
+| Uygulama | React Native (Expo SDK 54) |
+| Veri / Auth | Firebase Firestore + Anonymous Auth |
+| AI Kürasyon | Claude API, Firebase Cloud Function içinde (`functions/`) |
+| Film verisi | TMDB API |
 
-Controlled Discovery Algoritması: Gemini AI tarafından hazırlanan film havuzu; %25 Kullanıcı A, %25 Kullanıcı B ve %50 ortak zevk dengesiyle oluşturulur.
+AI anahtarı uygulamaya hiç girmez: iki kullanıcının cevapları Firestore'a yazılınca `curateMoviePool` fonksiyonu tetiklenir, Claude'dan film listesini alır, TMDB'de eşler ve `moviePool` alanına yazar. Firestore kuralları (`firestore.rules`) havuzu yalnızca sunucunun yazmasına izin verir.
 
-Interactive Curation: Ruh hali (Mood), Enerji Seviyesi ve Kırmızı Çizgiler (Deal Breakers) üzerinden kişiselleştirilmiş 3 soruluk Wizard akışı.
-
-Modern Cinema UI: Hugo Boss şıklığında, karanlık mod odaklı ve haptik geri bildirimli modern arayüz.
-
-🛠 Teknik Stack
-Frontend: React Native (Expo SDK)
-
-Backend & Database: Firebase (Auth, Firestore)
-
-AI: Google Gemini AI API
-
-Data: TMDB (The Movie Database) API
-
-Styling: StyleSheet (Merkezi Renk ve Tipografi Sistemi)
-
-📁 Proje Yapısı
-Plaintext
+```
 src/
-├── components/      # Atomik UI bileşenleri (AppButton, AppText vb.)
-├── constants/       # Tema ve Renk paletleri (Colors.js)
-├── navigation/      # Merkezi navigasyon ve Session Store yönetimi
-├── screens/         # Uygulama ekranları (Home, ModeSelection, AiCuration...)
-├── services/        # Firebase, AI ve TMDB servis katmanları
-└── hooks/           # Özel React hook'ları (useSessionParams vb.)
-⚙️ Kurulum
-Repoyu klonlayın: git clone [https://github.com/kullaniciadi/filmmatchapp.git](https://github.com/kullaniciadi/filmmatchapp.git)
+├── components/   Ortak UI bileşenleri (AppButton, AppText, ...)
+├── constants/    Renkler, avatarlar
+├── context/      Tema / dil tercihleri
+├── hooks/        useI18n, useSessionDisbandSync
+├── i18n/         Çeviri metinleri
+├── navigation/   Stack navigator
+├── screens/      Home, JoinRoomCode, ModeSelection, AiCurationQuestions, Swipe
+├── services/     Firebase, TMDB, oturum servisi
+└── theme/        Paletler
+functions/        Cloud Function: AI kürasyon (Claude + TMDB)
+```
 
-Bağımlılıkları yükleyin: npm install veya npx expo install
+## Kurulum
 
-.env dosyasını oluşturun ve Firebase/TMDB/Gemini API anahtarlarınızı ekleyin:
+1. Bağımlılıklar: `npm install` ve `cd functions && npm install`
+2. `.env.example` dosyasını `.env` olarak kopyalayıp Firebase ve TMDB değerlerini girin.
+3. Uygulama: `npx expo start`
 
-Kod snippet'i
-EXPO_PUBLIC_FIREBASE_API_KEY=...
-EXPO_PUBLIC_TMDB_API_KEY=...
-EXPO_PUBLIC_GEMINI_API_KEY=...
-Uygulamayı başlatın: npx expo start
+### AI Kürasyon için (bir kez)
 
-🧭 Yol Haritası
-[x] Firebase & Auth Altyapısı
+Cloud Functions, Firebase **Blaze** (kullandıkça öde) planı gerektirir.
 
-[x] 6 Haneli Kod ile Session Senkronizasyonu
+```bash
+npm install -g firebase-tools
+firebase login
+firebase use --add                               # Firebase projenizi seçin
+firebase functions:secrets:set ANTHROPIC_API_KEY
+firebase functions:secrets:set TMDB_API_KEY
+firebase deploy --only functions,firestore:rules
+```
 
-[x] UI/UX Refactor & Design System
+Fonksiyon testleri: `cd functions && npm test`
 
-[ ] Gemini AI Curation Pipeline (Sıradaki Adım!)
+## Yol haritası
 
-[ ] Match Screen Swipe Logic
-
-[ ] Perfect Match Animation & Results
+- [x] Firebase & anonim giriş
+- [x] 6 haneli kod ile oda senkronu
+- [x] UI/UX, tema ve çoklu dil
+- [x] AI kürasyon (Claude + TMDB)
+- [x] Swipe ve eşleşme mantığı
+- [ ] Eşleşme animasyonu ve sonuç ekranı
 
 Developed by Bartu Celik
