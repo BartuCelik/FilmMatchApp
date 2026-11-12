@@ -1,70 +1,59 @@
-# 🎬 FilmMatchApp
+# FilmMatch
 
-"Ne izlesek?" sorusuna iki kişilik cevap: aynı odaya girin, filmleri sağa/sola kaydırın, ikinizin de beğendiği film eşleşme olsun.
+A mobile app that ends the "what should we watch?" argument. Two people join the same session from their own phones, answer three quick questions, and swipe through a shortlist built for both of them. When both swipe right on the same film, it's a match.
 
-## Özellikler
+## How it works
 
-- **Kayıtsız giriş**: Firebase anonim oturum, isim + avatar yeterli.
-- **6 haneli oda kodu**: Biri odayı kurar, diğeri kodla katılır; her şey Firestore üzerinden gerçek zamanlı senkron.
-- **Modlar**
-  - **Film / Dizi**: TMDB popüler ve en yüksek puanlı listeleri.
-  - **AI Kürasyon**: İki kişi de ruh hali, enerji seviyesi ve kırmızı çizgilerini girer; Claude (Haiku 5.5) ikinize özel 8 filmlik bir havuz hazırlar (2 sizin, 2 partnerinizin, 4 ortak zevk). Filmler TMDB'de doğrulanır, posterler ve izleme platformları gerçek veridir.
-- **Eşleşme**: İkinizin de sağa kaydırdığı filmler anında bildirilir.
-- **Tema ve dil**: Açık/koyu tema; TR, EN, DE, ES, FR, IT, RU.
+1. **Start or join a session.** No sign-up: one person creates a session and shares a 6-digit code, the other joins with it. Sessions use anonymous Firebase auth.
+2. **Answer three questions.** Mood, energy level and deal-breakers, set by each person separately.
+3. **Get a shared pool.** Gemini builds the movie pool from both sets of answers: roughly a quarter leans to each person's taste and half sits on common ground. Posters and details come from TMDB.
+4. **Swipe.** Each vote is written to Firestore and both phones listen to the session in real time, so a mutual like shows up on both screens as soon as it happens.
 
-## Teknik yapı
+## Tech stack
 
-| Katman | Teknoloji |
-|---|---|
-| Uygulama | React Native (Expo SDK 54) |
-| Veri / Auth | Firebase Firestore + Anonymous Auth |
-| AI Kürasyon | Claude API, Firebase Cloud Function içinde (`functions/`) |
-| Film verisi | TMDB API |
+| Area        | Technology                                        |
+|-------------|---------------------------------------------------|
+| App         | React Native, Expo SDK 54                         |
+| Realtime    | Firebase Firestore (`onSnapshot` listeners), Firebase Auth (anonymous) |
+| AI curation | Google Gemini API with a structured JSON response schema, plus a fallback pool if the call fails |
+| Movie data  | TMDB API                                          |
+| UI          | Shared theme and color system, light/dark palettes, haptic feedback, i18n |
 
-AI anahtarı uygulamaya hiç girmez: iki kullanıcının cevapları Firestore'a yazılınca `curateMoviePool` fonksiyonu tetiklenir, Claude'dan film listesini alır, TMDB'de eşler ve `moviePool` alanına yazar. Firestore kuralları (`firestore.rules`) havuzu yalnızca sunucunun yazmasına izin verir.
+## Project structure
 
 ```
 src/
-├── components/   Ortak UI bileşenleri (AppButton, AppText, ...)
-├── constants/    Renkler, avatarlar
-├── context/      Tema / dil tercihleri
-├── hooks/        useI18n, useSessionDisbandSync
-├── i18n/         Çeviri metinleri
-├── navigation/   Stack navigator
-├── screens/      Home, JoinRoomCode, ModeSelection, AiCurationQuestions, Swipe
-├── services/     Firebase, TMDB, oturum servisi
-└── theme/        Paletler
-functions/        Cloud Function: AI kürasyon (Claude + TMDB)
+  components/   Reusable UI (movie card, detail modal, buttons, sliders)
+  screens/      Welcome, home, join-by-code, mode selection, AI curation, swipe, match
+  services/     Firebase session logic, Gemini curation, TMDB client
+  hooks/        i18n, session disband sync
+  context/      App-wide preferences (theme, language)
+  navigation/   Stack navigator
 ```
 
-## Kurulum
+## Run it locally
 
-1. Bağımlılıklar: `npm install` ve `cd functions && npm install`
-2. `.env.example` dosyasını `.env` olarak kopyalayıp Firebase ve TMDB değerlerini girin.
-3. Uygulama: `npx expo start`
-
-### AI Kürasyon için (bir kez)
-
-Cloud Functions, Firebase **Blaze** (kullandıkça öde) planı gerektirir.
+You need Node.js and the Expo Go app (or an emulator), plus your own Firebase project, TMDB API key and Gemini API key.
 
 ```bash
-npm install -g firebase-tools
-firebase login
-firebase use --add                               # Firebase projenizi seçin
-firebase functions:secrets:set ANTHROPIC_API_KEY
-firebase functions:secrets:set TMDB_API_KEY
-firebase deploy --only functions,firestore:rules
+git clone https://github.com/BartuCelik/FilmMatchApp.git
+cd FilmMatchApp
+npm install
+cp .env.example .env    # fill in your Firebase, TMDB and Gemini keys
+npx expo start
 ```
 
-Fonksiyon testleri: `cd functions && npm test`
+## Status
 
-## Yol haritası
+Personal side project, in progress.
 
-- [x] Firebase & anonim giriş
-- [x] 6 haneli kod ile oda senkronu
-- [x] UI/UX, tema ve çoklu dil
-- [x] AI kürasyon (Claude + TMDB)
-- [x] Swipe ve eşleşme mantığı
-- [ ] Eşleşme animasyonu ve sonuç ekranı
+- [x] Anonymous sessions and joining by 6-digit code
+- [x] Three-question curation flow
+- [x] Gemini-built shared movie pool with fallback
+- [x] Real-time swiping with mutual-like detection
+- [ ] Match celebration screen and results summary
+- [ ] Sessions for groups larger than two
 
-Developed by Bartu Celik
+---
+
+Built by [Bartu Çelik](https://github.com/BartuCelik).
