@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Dimensions,
@@ -17,10 +17,10 @@ import { AppText } from '../components/common/AppText';
 import { GradientEnergySlider } from '../components/common/GradientEnergySlider';
 import { Colors } from '../constants/Colors';
 import { auth } from '../services/firebaseConfig';
-import { fetchAIRecommendedMovies } from '../services/api/aiService';
 import { isSessionDisbanded, requestDisbandNavigation } from '../hooks/useSessionDisbandSync';
 import { setSessionParams, useMergedRouteParams } from '../services/navigationService';
 import {
+  retryAiCuration,
   subscribeToSession,
   updateCurationResponses,
 } from '../services/sessionService';
@@ -57,8 +57,6 @@ export default function AiCurationQuestionsScreen({ navigation, route }) {
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState('');
   const [wizardDone, setWizardDone] = useState(false);
-  const [hostPipelineStarted, setHostPipelineStarted] = useState(false);
-  const moviePoolHostRanRef = useRef(false);
   const aiReadyNavigatedRef = useRef(false);
   const scrollViewRef = useRef(null);
   const moodInputRef = useRef(null);
@@ -125,34 +123,10 @@ export default function AiCurationQuestionsScreen({ navigation, route }) {
     };
   }, [currentStep, scheduleScrollFieldIntoView]);
 
-  const hostId = sessionSnap?.hostId ?? null;
   const participants = sessionSnap?.participants;
   const curationResponses = sessionSnap?.curationResponses;
+  // Havuzu functions/index.js içindeki Cloud Function (Claude + TMDB) üretir.
   const aiStatus = sessionSnap?.aiStatus ?? 'idle';
-
-  const isHost = useMemo(
-    () => Boolean(userId && hostId && userId === hostId),
-    [userId, hostId],
-  );
-
-  useEffect(() => {
-    if (!sessionId || !isHost || !sessionSnap) return;
-    if (!allParticipantsHaveResponses(participants, curationResponses)) return;
-    const existing = sessionSnap.moviePool;
-    if (Array.isArray(existing) && existing.length > 0) return;
-    if (aiStatus === 'generating' || aiStatus === 'ready') return;
-    if (moviePoolHostRanRef.current) return;
-
-    moviePoolHostRanRef.current = true;
-    (async () => {
-      try {
-        await fetchAIRecommendedMovies(sessionId, curationResponses, participants);
-        setHostPipelineStarted(true);
-      } catch {
-        moviePoolHostRanRef.current = false;
-      }
-    })();
-  }, [sessionId, isHost, sessionSnap, participants, curationResponses, aiStatus]);
 
   useEffect(() => {
     if (!sessionId || aiReadyNavigatedRef.current) return;
@@ -213,16 +187,16 @@ export default function AiCurationQuestionsScreen({ navigation, route }) {
 
   const primaryDisabled =
     submitting ||
+    wizardDone ||
     (currentStep === 0 && !canGoNextFromStep0) ||
     (currentStep === 2 && !canFinishStep2);
 
-  const partnerWaiting =
-    wizardDone &&
-    isHost &&
-    !allParticipantsHaveResponses(participants, curationResponses);
-
-  const guestDoneMessage =
-    wizardDone && !isHost ? 'Cevapların kaydedildi. Ev sahibi eşleştirmeyi tamamlıyor.' : null;
+  const bothAnswered = allParticipantsHaveResponses(participants, curationResponses);
+  const partnerWaiting = wizardDone && !bothAnswered;
+  // error: retry allowed; failed: retries used up; limit: daily AI cap reached (see functions/curation.js).
+  const poolStopped = ['error', 'failed', 'limit'].includes(aiStatus);
+  const poolGenerating = wizardDone && bothAnswered && !poolStopped;
+  const poolFailed = wizardDone && bothAnswered && poolStopped;
 
   const scrollPaddingBottom = insets.bottom + 120;
   const progressWidthPercent = progress * 100;
@@ -373,16 +347,32 @@ export default function AiCurationQuestionsScreen({ navigation, route }) {
               </View>
             ) : null}
 
-            {guestDoneMessage ? (
-              <AppText variant="success" style={styles.success}>
-                {guestDoneMessage}
-              </AppText>
+            {poolGenerating ? (
+              <View style={styles.banner}>
+                <ActivityIndicator color={Colors.indigoGlow} />
+                <AppText variant="bodyStrong" style={styles.bannerText}>
+                  Size özel film havuzu hazırlanıyor...
+                </AppText>
+              </View>
             ) : null}
 
-            {wizardDone && isHost && hostPipelineStarted ? (
-              <AppText variant="success" style={styles.success}>
-                Her iki cevap alındı. Film havuzu oluşturuldu ve kaydedildi.
-              </AppText>
+            {poolFailed ? (
+              <>
+                <AppText variant="error" style={styles.error}>
+                  {aiStatus === 'limit'
+                    ? 'AI önerileri bugünlük doldu. Film ya da Dizi modunu deneyebilirsiniz.'
+                    : aiStatus === 'failed'
+                      ? 'Öneriler hazırlanamadı. Film ya da Dizi modunu deneyebilirsiniz.'
+                      : 'Öneriler hazırlanamadı.'}
+                </AppText>
+                {aiStatus === 'error' ? (
+                  <AppButton
+                    title="Tekrar dene"
+                    onPress={() => retryAiCuration(sessionId).catch((e) => setSubmitError(e?.message || 'Kayıt başarısız.'))}
+                    style={styles.primaryBtn}
+                  />
+                ) : null}
+              </>
             ) : null}
 
             <AppButton

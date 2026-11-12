@@ -1,8 +1,10 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  Animated,
   Image,
   Modal,
+  PanResponder,
   Pressable,
   StyleSheet,
   Text,
@@ -12,16 +14,6 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { PanGestureHandler } from 'react-native-gesture-handler';
-import Animated, {
-  interpolate,
-  runOnJS,
-  useAnimatedGestureHandler,
-  useAnimatedStyle,
-  useSharedValue,
-  withSpring,
-  withTiming,
-} from 'react-native-reanimated';
 import {
   collection,
   doc,
@@ -33,42 +25,36 @@ import { auth, db } from '../services/firebaseConfig';
 import { getScreenRouteParams } from '../services/navigationService';
 import { Colors } from '../constants/Colors';
 import { useSessionDisbandSync } from '../hooks/useSessionDisbandSync';
-import { fetchContentDetails } from '../services/api';
+import { useI18n } from '../hooks/useI18n';
+import { fetchContent, fetchContentDetails } from '../services/api';
 
 const SWIPE_THRESHOLD = 110;
 const OFFSCREEN_X = 460;
 const CARD_HEIGHT = 560;
-const IMAGE_BASE_URL =
-  process.env.EXPO_PUBLIC_TMDB_IMAGE_BASE_URL || 'https://image.tmdb.org/t/p/w500';
 
-function normalizeMovieTags(movie) {
-  if (Array.isArray(movie?.genres)) return movie.genres.slice(0, 3);
-  if (Array.isArray(movie?.tags)) return movie.tags.slice(0, 3);
-  if (typeof movie?.genres === 'string') {
-    return movie.genres
-      .split(',')
-      .map((x) => x.trim())
-      .filter(Boolean)
-      .slice(0, 3);
+/** Movie / TV modes swipe TMDB lists; both devices fetch the same endpoint, votes match by id. */
+async function loadTmdbItems(mode) {
+  if (mode === 'tv') {
+    const [popular, topRated] = await Promise.all([
+      fetchContent('tv', 'popular'),
+      fetchContent('tv', 'top_rated'),
+    ]);
+    return [...new Map([...popular, ...topRated].map((item) => [item.id, item])).values()];
   }
-  return movie?.source ? [String(movie.source)] : ['FilmMatch Pick'];
-}
-
-function posterUri(posterPath) {
-  if (!posterPath || typeof posterPath !== 'string') return '';
-  if (/^https?:\/\//i.test(posterPath)) return posterPath;
-  return `${IMAGE_BASE_URL}${posterPath}`;
+  return fetchContent('movie', 'popular');
 }
 
 export default function SwipeScreen({ navigation, route }) {
   const merged = getScreenRouteParams(route);
   const sessionId = merged.sessionId;
   const userId = auth.currentUser?.uid ?? null;
+  const { t } = useI18n();
 
   useSessionDisbandSync(navigation, sessionId);
 
   const [sessionData, setSessionData] = useState(null);
-  const [loadingSession, setLoadingSession] = useState(true);
+  const [loadingSession, setLoadingSession] = useState(Boolean(sessionId));
+  const [tmdbItems, setTmdbItems] = useState(null);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [detailOpen, setDetailOpen] = useState(false);
   const [matchIds, setMatchIds] = useState([]);
@@ -81,13 +67,19 @@ export default function SwipeScreen({ navigation, route }) {
   const matchToastTimerRef = useRef(null);
   const statusToastTimerRef = useRef(null);
 
-  const translateX = useSharedValue(0);
-  const isAnimating = useSharedValue(false);
+  const pan = useRef(new Animated.Value(0)).current;
+  const animatingRef = useRef(false);
+
+  const selectedMode = sessionData?.selectedMode ?? merged.mode ?? 'movie';
+  const isAiMode = selectedMode === 'ai';
+  const participants = Array.isArray(sessionData?.participants) ? sessionData.participants : [];
+  const participantsKey = participants.join(',');
 
   const movies = useMemo(() => {
-    const pool = sessionData?.moviePool;
-    return Array.isArray(pool) ? pool : [];
-  }, [sessionData]);
+    if (isAiMode) return Array.isArray(sessionData?.moviePool) ? sessionData.moviePool : [];
+    return tmdbItems ?? [];
+  }, [isAiMode, sessionData?.moviePool, tmdbItems]);
+  const loadingMovies = !isAiMode && tmdbItems === null;
 
   const currentMovie = movies[currentIndex] || null;
   const nextMovie = movies[currentIndex + 1] || null;
@@ -95,7 +87,7 @@ export default function SwipeScreen({ navigation, route }) {
   const movieTitleMap = useMemo(
     () =>
       movies.reduce((acc, movie) => {
-        acc[String(movie.id)] = movie.title || 'New Match';
+        acc[String(movie.id)] = movie.title || '';
         return acc;
       }, {}),
     [movies],
@@ -106,6 +98,36 @@ export default function SwipeScreen({ navigation, route }) {
   const totalMovies = Math.max(movies.length, 1);
   const progressValue = Math.min((currentIndex + 1) / totalMovies, 1);
 
+  const movieTags = (movie) => {
+    if (movie.source === 'common') return [t('swipe_tag_common')];
+    if (movie.source === 'userA' || movie.source === 'userB') {
+      const ownSource = participants[0] === userId ? 'userA' : 'userB';
+      return [movie.source === ownSource ? t('swipe_tag_mine') : t('swipe_tag_partner')];
+    }
+    return typeof movie.score === 'number' && movie.score > 0 ? [`★ ${movie.score.toFixed(1)}`] : [];
+  };
+
+  const showStatusToast = useCallback((text) => {
+    setStatusToastText(text);
+    if (statusToastTimerRef.current) clearTimeout(statusToastTimerRef.current);
+    statusToastTimerRef.current = setTimeout(() => {
+      setStatusToastText('');
+      statusToastTimerRef.current = null;
+    }, 1500);
+  }, []);
+
+  useEffect(() => {
+    if (isAiMode) return undefined;
+    let cancelled = false;
+    setTmdbItems(null);
+    loadTmdbItems(selectedMode).then((items) => {
+      if (!cancelled) setTmdbItems(items);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [isAiMode, selectedMode]);
+
   useEffect(() => {
     let cancelled = false;
     const toPrefetch = [currentMovie, nextMovie].filter(Boolean);
@@ -114,9 +136,8 @@ export default function SwipeScreen({ navigation, route }) {
 
     (async () => {
       for (const movie of missing) {
-        const tmdbIdRaw = String(movie.id || '').replace(/^movie-/, '');
-        if (!tmdbIdRaw) continue;
-        const details = await fetchContentDetails('movie', tmdbIdRaw);
+        if (!movie.tmdbId) continue;
+        const details = await fetchContentDetails(movie.type || 'movie', movie.tmdbId);
         if (cancelled) return;
         setProvidersByMovieId((prev) => ({
           ...prev,
@@ -141,17 +162,14 @@ export default function SwipeScreen({ navigation, route }) {
 
   useEffect(() => {
     if (!sessionId || !userId) return undefined;
+    const partnerId = participantsKey.split(',').find((uid) => uid && uid !== userId);
+    if (!partnerId) return undefined;
     const votesRef = collection(db, 'sessions', sessionId, 'votes');
     return onSnapshot(votesRef, (snap) => {
       const votesByUser = {};
       snap.forEach((d) => {
         votesByUser[d.id] = d.data()?.votes || {};
       });
-      const participants = Array.isArray(sessionData?.participants)
-        ? sessionData.participants
-        : [];
-      const partnerId = participants.find((uid) => uid && uid !== userId);
-      if (!partnerId) return;
       const ownVotes = votesByUser[userId] || {};
       const partnerVotes = votesByUser[partnerId] || {};
       const ownLikes = Object.keys(ownVotes).filter((movieId) => ownVotes[movieId] === 'like');
@@ -161,8 +179,7 @@ export default function SwipeScreen({ navigation, route }) {
       const newMatches = intersection.filter((id) => !previous.includes(id));
       if (newMatches.length > 0) {
         const lastNewMatchId = newMatches[newMatches.length - 1];
-        const title = movieTitleMap[lastNewMatchId] || 'A movie';
-        setMatchToastText(`Matched! ${title}`);
+        setMatchToastText(`${t('swipe_matched')}${movieTitleMap[lastNewMatchId] || ''}`);
         if (matchToastTimerRef.current) clearTimeout(matchToastTimerRef.current);
         matchToastTimerRef.current = setTimeout(() => {
           setMatchToastText('');
@@ -171,7 +188,7 @@ export default function SwipeScreen({ navigation, route }) {
       }
       previousMatchIdsRef.current = intersection;
     });
-  }, [movieTitleMap, sessionId, userId, sessionData?.participants]);
+  }, [movieTitleMap, sessionId, userId, participantsKey, t]);
 
   useEffect(
     () => () => {
@@ -181,92 +198,89 @@ export default function SwipeScreen({ navigation, route }) {
     [],
   );
 
-  const persistVote = useCallback(
-    async (movieId, vote) => {
-      if (!sessionId || !userId || !movieId) return;
-      const isSessionActive = sessionData?.sessionStatus === 'active';
-      const isAiReady = sessionData?.aiStatus === 'ready';
-      if (!isSessionActive || !isAiReady) {
-        setStatusToastText('Oylama icin oturum aktif ve AI hazir olmali.');
-        if (statusToastTimerRef.current) clearTimeout(statusToastTimerRef.current);
-        statusToastTimerRef.current = setTimeout(() => {
-          setStatusToastText('');
-          statusToastTimerRef.current = null;
-        }, 1500);
-        return;
-      }
+  const canVote = Boolean(sessionId && userId) && sessionData?.sessionStatus === 'active';
+
+  const finalizeSwipe = useCallback(
+    (direction) => {
+      const movie = movies[currentIndex];
+      setCurrentIndex((prev) => prev + 1);
+      pan.setValue(0);
+      animatingRef.current = false;
+      if (!movie) return;
       const voteRef = doc(db, 'sessions', sessionId, 'votes', userId);
-      await setDoc(
+      setDoc(
         voteRef,
         {
-          votes: { [movieId]: vote },
+          votes: { [String(movie.id)]: direction === 'right' ? 'like' : 'dislike' },
           updatedAt: serverTimestamp(),
         },
         { merge: true },
-      );
+      ).catch(() => showStatusToast(t('swipe_vote_failed')));
     },
-    [sessionData?.aiStatus, sessionData?.sessionStatus, sessionId, userId],
+    [currentIndex, movies, pan, sessionId, showStatusToast, t, userId],
   );
 
-  const finalizeSwipe = useCallback(
-    async (direction) => {
-      const movie = movies[currentIndex];
-      if (!movie) return;
-      const vote = direction === 'right' ? 'like' : 'dislike';
-      await persistVote(String(movie.id), vote);
-      setCurrentIndex((prev) => prev + 1);
-      translateX.value = 0;
-      isAnimating.value = false;
-    },
-    [currentIndex, isAnimating, movies, persistVote, translateX],
-  );
+  const springBack = useCallback(() => {
+    Animated.spring(pan, { toValue: 0, useNativeDriver: true }).start();
+  }, [pan]);
 
   const triggerSwipe = useCallback(
     (direction) => {
-      if (!currentMovie || isAnimating.value) return;
-      isAnimating.value = true;
-      const toX = direction === 'right' ? OFFSCREEN_X : -OFFSCREEN_X;
-      translateX.value = withTiming(toX, { duration: 220 }, (finished) => {
-        if (finished) runOnJS(finalizeSwipe)(direction);
-      });
-    },
-    [currentMovie, finalizeSwipe, isAnimating, translateX],
-  );
-
-  const gestureHandler = useAnimatedGestureHandler({
-    onActive: (event) => {
-      if (isAnimating.value) return;
-      translateX.value = event.translationX;
-    },
-    onEnd: () => {
-      if (Math.abs(translateX.value) > SWIPE_THRESHOLD) {
-        const direction = translateX.value > 0 ? 'right' : 'left';
-        isAnimating.value = true;
-        translateX.value = withTiming(direction === 'right' ? OFFSCREEN_X : -OFFSCREEN_X, { duration: 210 }, (finished) => {
-          if (finished) runOnJS(finalizeSwipe)(direction);
-        });
+      if (!currentMovie || animatingRef.current) return;
+      if (!canVote) {
+        showStatusToast(t('swipe_vote_blocked'));
+        springBack();
         return;
       }
-      translateX.value = withSpring(0);
+      animatingRef.current = true;
+      Animated.timing(pan, {
+        toValue: direction === 'right' ? OFFSCREEN_X : -OFFSCREEN_X,
+        duration: 220,
+        useNativeDriver: true,
+      }).start(() => finalizeSwipe(direction));
     },
-  });
+    [canVote, currentMovie, finalizeSwipe, pan, showStatusToast, springBack, t],
+  );
 
-  const topCardStyle = useAnimatedStyle(() => {
-    const rotate = interpolate(translateX.value, [-240, 0, 240], [-12, 0, 12]);
-    return {
-      transform: [{ translateX: translateX.value }, { rotateZ: `${rotate}deg` }],
-    };
-  });
+  // PanResponder is created once; read the latest callbacks through refs.
+  const triggerSwipeRef = useRef(triggerSwipe);
+  triggerSwipeRef.current = triggerSwipe;
+  const springBackRef = useRef(springBack);
+  springBackRef.current = springBack;
 
-  const likeOverlay = useAnimatedStyle(() => ({
-    opacity: interpolate(translateX.value, [0, 80, 180], [0, 0.2, 0.45]),
-  }));
+  const panResponder = useRef(
+    PanResponder.create({
+      onMoveShouldSetPanResponder: (_, g) =>
+        !animatingRef.current && Math.abs(g.dx) > 8 && Math.abs(g.dx) > Math.abs(g.dy),
+      onPanResponderMove: (_, g) => pan.setValue(g.dx),
+      onPanResponderRelease: (_, g) => {
+        if (Math.abs(g.dx) > SWIPE_THRESHOLD) triggerSwipeRef.current(g.dx > 0 ? 'right' : 'left');
+        else springBackRef.current();
+      },
+      onPanResponderTerminate: () => springBackRef.current(),
+    }),
+  ).current;
 
-  const dislikeOverlay = useAnimatedStyle(() => ({
-    opacity: interpolate(translateX.value, [-180, -80, 0], [0.45, 0.2, 0]),
-  }));
+  const topCardStyle = {
+    transform: [
+      { translateX: pan },
+      {
+        rotateZ: pan.interpolate({
+          inputRange: [-240, 0, 240],
+          outputRange: ['-12deg', '0deg', '12deg'],
+          extrapolate: 'clamp',
+        }),
+      },
+    ],
+  };
+  const likeOverlay = {
+    opacity: pan.interpolate({ inputRange: [0, 80, 180], outputRange: [0, 0.2, 0.45], extrapolate: 'clamp' }),
+  };
+  const dislikeOverlay = {
+    opacity: pan.interpolate({ inputRange: [-180, -80, 0], outputRange: [0.45, 0.2, 0], extrapolate: 'clamp' }),
+  };
 
-  if (loadingSession) {
+  if (loadingSession || loadingMovies) {
     return (
       <SafeAreaView style={styles.safe}>
         <View style={styles.center}>
@@ -276,6 +290,8 @@ export default function SwipeScreen({ navigation, route }) {
     );
   }
 
+  const currentProviders = currentMovie ? providersByMovieId[String(currentMovie.id)] || [] : [];
+
   return (
     <SafeAreaView style={styles.safe}>
       <LinearGradient colors={['#0C0D12', '#0E0C16', '#1A0F24']} style={styles.bg}>
@@ -283,7 +299,7 @@ export default function SwipeScreen({ navigation, route }) {
           <TouchableOpacity onPress={() => navigation.goBack()} style={styles.iconBtn} activeOpacity={0.85}>
             <Ionicons name="arrow-back" size={20} color={Colors.textPrimary} />
           </TouchableOpacity>
-          <Text style={styles.title}>Let&apos;s pick 🍿</Text>
+          <Text style={styles.title}>{t('swipe_title')}</Text>
           <View style={styles.progressWrap}>
             <Text style={styles.counter}>
               {Math.min(currentIndex + 1, totalMovies)}/{totalMovies}
@@ -297,72 +313,74 @@ export default function SwipeScreen({ navigation, route }) {
         <View style={styles.stackWrap}>
           {thirdMovie ? (
             <View style={[styles.card, styles.backCard2]}>
-              <Image source={{ uri: posterUri(thirdMovie.posterPath) }} style={styles.poster} />
+              <Image source={{ uri: thirdMovie.image || undefined }} style={styles.poster} />
             </View>
           ) : null}
           {nextMovie ? (
             <View style={[styles.card, styles.backCard1]}>
-              <Image source={{ uri: posterUri(nextMovie.posterPath) }} style={styles.poster} />
+              <Image source={{ uri: nextMovie.image || undefined }} style={styles.poster} />
             </View>
           ) : null}
 
           {currentMovie ? (
-            <PanGestureHandler onGestureEvent={gestureHandler}>
-              <Animated.View style={[styles.card, topCardStyle]}>
-                <Image source={{ uri: posterUri(currentMovie.posterPath) }} style={styles.poster} />
-                <Animated.View style={[styles.swipeOverlay, styles.likeGlow, likeOverlay]} />
-                <Animated.View style={[styles.swipeOverlay, styles.dislikeGlow, dislikeOverlay]} />
+            <Animated.View style={[styles.card, topCardStyle]} {...panResponder.panHandlers}>
+              <Image source={{ uri: currentMovie.image || undefined }} style={styles.poster} />
+              <Animated.View pointerEvents="none" style={[styles.swipeOverlay, styles.likeGlow, likeOverlay]} />
+              <Animated.View pointerEvents="none" style={[styles.swipeOverlay, styles.dislikeGlow, dislikeOverlay]} />
 
-                <LinearGradient
-                  colors={['transparent', 'rgba(7,7,10,0.95)']}
-                  style={styles.metaWrap}
-                >
-                  <Text style={styles.movieTitle} numberOfLines={1}>
-                    {currentMovie.title}
-                  </Text>
-                  <Text style={styles.movieDesc} numberOfLines={2}>
-                    {currentMovie.overview || 'A curated pick just for your session.'}
-                  </Text>
-                  <View style={styles.tagRow}>
-                    {normalizeMovieTags(currentMovie).map((tag) => (
-                      <View key={`${currentMovie.id}-${tag}`} style={styles.tagPill}>
-                        <Text style={styles.tagText}>{tag}</Text>
-                      </View>
-                    ))}
-                  </View>
-                  <View style={styles.providersRow}>
-                    {(providersByMovieId[String(currentMovie.id)] || []).slice(0, 2).map((provider) => (
-                      <View key={`${currentMovie.id}-p-${provider.id}`} style={styles.providerLogoBubble}>
-                        <Image
-                          source={{ uri: provider.logo }}
-                          style={styles.providerLogo}
-                          resizeMode="cover"
-                        />
-                      </View>
-                    ))}
-                    {(providersByMovieId[String(currentMovie.id)] || []).length > 2 ? (
-                      <TouchableOpacity
-                        style={styles.providerPlus}
-                        activeOpacity={0.85}
-                        onPress={() => {
-                          setProvidersModalMovieId(String(currentMovie.id));
-                          setProvidersModalOpen(true);
-                        }}
-                      >
-                        <Text style={styles.providerPlusText}>
-                          +
-                          {(providersByMovieId[String(currentMovie.id)] || []).length - 2}
-                        </Text>
-                      </TouchableOpacity>
-                    ) : null}
-                  </View>
-                </LinearGradient>
-              </Animated.View>
-            </PanGestureHandler>
+              <LinearGradient
+                colors={['transparent', 'rgba(7,7,10,0.95)']}
+                style={styles.metaWrap}
+              >
+                <Text style={styles.movieTitle} numberOfLines={1}>
+                  {currentMovie.title}
+                </Text>
+                <Text style={styles.movieDesc} numberOfLines={2}>
+                  {currentMovie.reason || currentMovie.overview || t('swipe_no_overview')}
+                </Text>
+                <View style={styles.tagRow}>
+                  {movieTags(currentMovie).map((tag) => (
+                    <View key={`${currentMovie.id}-${tag}`} style={styles.tagPill}>
+                      <Text style={styles.tagText}>{tag}</Text>
+                    </View>
+                  ))}
+                </View>
+                <View style={styles.providersRow}>
+                  {currentProviders.slice(0, 2).map((provider) => (
+                    <View key={`${currentMovie.id}-p-${provider.id}`} style={styles.providerLogoBubble}>
+                      <Image
+                        source={{ uri: provider.logo }}
+                        style={styles.providerLogo}
+                        resizeMode="cover"
+                      />
+                    </View>
+                  ))}
+                  {currentProviders.length > 2 ? (
+                    <TouchableOpacity
+                      style={styles.providerPlus}
+                      activeOpacity={0.85}
+                      onPress={() => {
+                        setProvidersModalMovieId(String(currentMovie.id));
+                        setProvidersModalOpen(true);
+                      }}
+                    >
+                      <Text style={styles.providerPlusText}>+{currentProviders.length - 2}</Text>
+                    </TouchableOpacity>
+                  ) : null}
+                </View>
+              </LinearGradient>
+            </Animated.View>
           ) : (
             <View style={[styles.card, styles.doneCard]}>
-              <Text style={styles.doneTitle}>Tum filmleri oyladin</Text>
-              <Text style={styles.doneSub}>Match sayisi: {matchIds.length}</Text>
+              <Text style={styles.doneTitle}>
+                {movies.length === 0 ? t('swipe_empty') : t('swipe_done_title')}
+              </Text>
+              {movies.length > 0 ? (
+                <Text style={styles.doneSub}>
+                  {t('swipe_match_count')}
+                  {matchIds.length}
+                </Text>
+              ) : null}
             </View>
           )}
         </View>
@@ -401,12 +419,11 @@ export default function SwipeScreen({ navigation, route }) {
       <Modal visible={detailOpen} transparent animationType="fade" onRequestClose={() => setDetailOpen(false)}>
         <View style={styles.modalBackdrop}>
           <View style={styles.modalCard}>
-            <Text style={styles.modalTitle}>{currentMovie?.title || 'Film'}</Text>
-            <Text style={styles.modalBody}>
-              {currentMovie?.overview || 'Bu film icin aciklama bilgisi bulunamadi.'}
-            </Text>
+            <Text style={styles.modalTitle}>{currentMovie?.title || ''}</Text>
+            {currentMovie?.reason ? <Text style={styles.modalBody}>{currentMovie.reason}</Text> : null}
+            <Text style={styles.modalBody}>{currentMovie?.overview || t('swipe_no_overview')}</Text>
             <TouchableOpacity onPress={() => setDetailOpen(false)} style={styles.modalCloseBtn}>
-              <Text style={styles.modalCloseText}>Kapat</Text>
+              <Text style={styles.modalCloseText}>{t('swipe_close')}</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -420,7 +437,7 @@ export default function SwipeScreen({ navigation, route }) {
       >
         <Pressable style={styles.modalBackdrop} onPress={() => setProvidersModalOpen(false)}>
           <Pressable style={styles.providersModalCard} onPress={() => {}}>
-            <Text style={styles.modalTitle}>Watch Providers</Text>
+            <Text style={styles.modalTitle}>{t('swipe_providers')}</Text>
             <View style={styles.providersGrid}>
               {activeProviders.map((provider) => (
                 <View key={`provider-all-${provider.id}`} style={styles.providersGridItem}>

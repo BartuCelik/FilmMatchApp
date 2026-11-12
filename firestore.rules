@@ -1,0 +1,52 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    match /sessions/{sessionId} {
+      function isParticipant() {
+        return request.auth.uid in resource.data.participants;
+      }
+
+      // Joining = adding yourself to a room that is still waiting for a partner.
+      function isJoining() {
+        return resource.data.sessionStatus == 'waiting_for_partner'
+          && request.resource.data.participants == resource.data.participants.concat([request.auth.uid]);
+      }
+
+      // Clients may only reset a failed AI run back to idle; the Cloud Function owns every other transition.
+      function aiStatusChangeAllowed() {
+        return !request.resource.data.diff(resource.data).affectedKeys().hasAny(['aiStatus'])
+          || (resource.data.aiStatus == 'error' && request.resource.data.aiStatus == 'idle');
+      }
+
+      // shortcut: any signed-in user can read rooms because joining queries by code; move the code lookup to a function if room data becomes sensitive.
+      allow read: if signedIn();
+
+      allow create: if signedIn()
+        && request.resource.data.hostId == request.auth.uid
+        && request.resource.data.participants == [request.auth.uid]
+        && request.resource.data.aiStatus == 'idle'
+        && !('moviePool' in request.resource.data)
+        && !('aiAttempts' in request.resource.data);
+
+      allow update: if signedIn()
+        && (isParticipant() || isJoining())
+        // aiAttempts is server-only: letting clients reset it would allow unlimited Claude calls.
+        && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['moviePool', 'aiAttempts', 'hostId', 'code'])
+        && aiStatusChangeAllowed();
+
+      match /votes/{userId} {
+        function inRoom() {
+          return request.auth.uid in get(/databases/$(database)/documents/sessions/$(sessionId)).data.participants;
+        }
+
+        allow read: if signedIn() && inRoom();
+        allow write: if signedIn() && request.auth.uid == userId && inRoom();
+      }
+    }
+  }
+}
