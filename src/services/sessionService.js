@@ -74,9 +74,41 @@ export const updateCurationResponses = async (sessionId, userId, curationPayload
   });
 };
 
-/** AI havuzu üretimi hata verdiyse Cloud Function'ın yeniden denemesi için durumu sıfırla. */
+/** AI havuzu üretimi hata verdiyse host'un yeniden denemesi için durumu sıfırla. */
 export const retryAiCuration = async (sessionId) => {
   await updateDoc(doc(db, "sessions", sessionId), { aiStatus: "idle" });
+};
+
+const MAX_AI_ATTEMPTS = 3;
+
+/** Host çağırır: Cloudflare Worker'dan havuzu alıp oturuma yazar. */
+export const generateAiPool = async (sessionId, session) => {
+  const ref = doc(db, "sessions", sessionId);
+  await updateDoc(ref, { aiStatus: "generating" });
+  let status = 0;
+  try {
+    const url = process.env.EXPO_PUBLIC_CURATION_URL;
+    if (!url) throw new Error("EXPO_PUBLIC_CURATION_URL is not set");
+    const [a, b] = session.participants;
+    const res = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userA: session.curationResponses[a], userB: session.curationResponses[b] }),
+    });
+    status = res.status;
+    if (res.ok) {
+      const { moviePool } = await res.json();
+      await updateDoc(ref, { moviePool, aiStatus: "ready", aiMoviePoolGeneratedAt: serverTimestamp() });
+      return;
+    }
+  } catch (e) {
+    // network/config failure: handled like any non-429 failure below
+  }
+  const attempts = (session.aiAttempts ?? 0) + 1;
+  await updateDoc(ref, {
+    aiAttempts: attempts,
+    aiStatus: status === 429 ? "limit" : attempts >= MAX_AI_ATTEMPTS ? "failed" : "error",
+  });
 };
 
 /** Oturumu sonlandır: partnerlere isDisbanded + sessionStatus senkronu. */

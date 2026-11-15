@@ -20,6 +20,7 @@ import { auth } from '../services/firebaseConfig';
 import { isSessionDisbanded, requestDisbandNavigation } from '../hooks/useSessionDisbandSync';
 import { setSessionParams, useMergedRouteParams } from '../services/navigationService';
 import {
+  generateAiPool,
   retryAiCuration,
   subscribeToSession,
   updateCurationResponses,
@@ -58,6 +59,7 @@ export default function AiCurationQuestionsScreen({ navigation, route }) {
   const [submitError, setSubmitError] = useState('');
   const [wizardDone, setWizardDone] = useState(false);
   const aiReadyNavigatedRef = useRef(false);
+  const aiStartedRef = useRef(false);
   const scrollViewRef = useRef(null);
   const moodInputRef = useRef(null);
   const redLinesInputRef = useRef(null);
@@ -125,7 +127,7 @@ export default function AiCurationQuestionsScreen({ navigation, route }) {
 
   const participants = sessionSnap?.participants;
   const curationResponses = sessionSnap?.curationResponses;
-  // Havuzu functions/index.js içindeki Cloud Function (Claude + TMDB) üretir.
+  // Havuzu host cihaz Cloudflare Worker'dan (Workers AI + TMDB) ister.
   const aiStatus = sessionSnap?.aiStatus ?? 'idle';
 
   useEffect(() => {
@@ -135,6 +137,21 @@ export default function AiCurationQuestionsScreen({ navigation, route }) {
     setSessionParams({ ...merged, sessionId, username });
     navigation.replace('Match');
   }, [aiStatus, merged, navigation, sessionId, username]);
+
+  const bothAnsweredForPool = allParticipantsHaveResponses(participants, curationResponses);
+  const poolEmpty = !sessionSnap?.moviePool?.length;
+  const isHost = !!userId && userId === participants?.[0];
+  useEffect(() => {
+    if (aiStatus !== 'idle') {
+      aiStartedRef.current = false; // re-arm so "Tekrar dene" (back to idle) triggers another run
+      return;
+    }
+    if (aiStartedRef.current) return;
+    if (!bothAnsweredForPool || sessionSnap?.selectedMode !== 'ai' || !poolEmpty || !isHost) return;
+    aiStartedRef.current = true;
+    // shortcut: the host device drives generation, so if the host leaves mid-run the room stalls in 'generating'; add a server-side trigger if that matters.
+    generateAiPool(sessionId, sessionSnap).catch(() => {});
+  }, [aiStatus, bothAnsweredForPool, poolEmpty, isHost, sessionId, sessionSnap]);
 
   const progress = (currentStep + 1) / STEPS;
 
@@ -193,7 +210,7 @@ export default function AiCurationQuestionsScreen({ navigation, route }) {
 
   const bothAnswered = allParticipantsHaveResponses(participants, curationResponses);
   const partnerWaiting = wizardDone && !bothAnswered;
-  // error: retry allowed; failed: retries used up; limit: daily AI cap reached (see functions/curation.js).
+  // error: retry allowed; failed: retries used up; limit: daily AI cap reached (Worker 429).
   const poolStopped = ['error', 'failed', 'limit'].includes(aiStatus);
   const poolGenerating = wizardDone && bothAnswered && !poolStopped;
   const poolFailed = wizardDone && bothAnswered && poolStopped;
