@@ -50,7 +50,10 @@ worker/           Cloudflare Worker: AI kürasyon (Workers AI + TMDB)
 3. `npx wrangler secret put TMDB_API_KEY`
 4. `npx wrangler deploy`
 5. Çıkan URL'yi `.env` dosyasına `EXPO_PUBLIC_CURATION_URL` olarak yazın (sonu `/curate` olmalı).
-6. `firebase deploy --only firestore:rules` (Spark planında çalışır).
+6. `npm install -g firebase-tools`
+7. `firebase login`
+8. `firebase use --add`
+9. `firebase deploy --only firestore:rules` (Spark planında çalışır).
 
 Worker testleri: `cd worker && npm test`
 

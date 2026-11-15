@@ -33,10 +33,9 @@ export default {
       return json({ error: 'userA and userB required' }, 400);
     }
 
-    const { success } = await env.LIMITER.limit({ key: request.headers.get('CF-Connecting-IP') ?? 'unknown' });
-    if (!success) return json({ error: 'rate limited' }, 429);
-
     try {
+      const { success } = await env.LIMITER.limit({ key: request.headers.get('CF-Connecting-IP') ?? 'unknown' });
+      if (!success) return json({ error: 'rate_limited' }, 429);
       const signals = { userA: pickSignals(body.userA), userB: pickSignals(body.userB) };
       const result = await env.AI.run(MODEL, {
         messages: [
@@ -47,12 +46,13 @@ export default {
         max_tokens: 1500,
       });
       const text = typeof result.response === 'string' ? result.response : JSON.stringify(result.response);
-      const resolved = await Promise.all(parsePicks(text).map((p) => resolveOnTmdb(env, p)));
+      const resolved = await Promise.all(parsePicks(text).map((p) => resolveOnTmdb(env, p).catch(() => null)));
       return json({ moviePool: finalizePool(resolved.filter(Boolean)) });
     } catch (error) {
       const message = String(error?.message ?? error);
       console.error('curate failed:', message.slice(0, 200));
-      return json({ error: 'curation failed' }, /4006|neuron|quota|daily/i.test(message) ? 429 : 502);
+      const quota = /4006|neuron|quota/i.test(message);
+      return json({ error: quota ? 'quota' : 'curation failed' }, quota ? 429 : 502);
     }
   },
 };

@@ -54,11 +54,28 @@ test('400 on non-JSON body', async () => {
 test('429 when limiter rejects', async () => {
   const res = await worker.fetch(post(valid), env({ LIMITER: { limit: async () => ({ success: false }) } }));
   assert.equal(res.status, 429);
+  assert.deepEqual(await res.json(), { error: 'rate_limited' });
+});
+
+test('502 when limiter throws', async () => {
+  const res = await worker.fetch(post(valid), env({ LIMITER: { limit: async () => { throw new Error('x'); } } }));
+  assert.equal(res.status, 502);
+});
+
+test('200 when one TMDB lookup fails', async () => {
+  globalThis.fetch = async (url) => {
+    const q = new URL(url).searchParams.get('query');
+    if (q === 'Film 0') return new Response('no', { status: 500 });
+    return Response.json({ results: [{ id: 1 + Number(q.split(' ')[1]), title: q, poster_path: '/p.jpg' }] });
+  };
+  assert.equal((await worker.fetch(post(valid), env())).status, 200);
 });
 
 test('429 when AI throws quota error', async () => {
   const AI = { run: async () => { throw new Error('4006: you have used up your daily free allocation of 10,000 neurons'); } };
-  assert.equal((await worker.fetch(post(valid), env({ AI }))).status, 429);
+  const res = await worker.fetch(post(valid), env({ AI }));
+  assert.equal(res.status, 429);
+  assert.deepEqual(await res.json(), { error: 'quota' });
 });
 
 test('502 when AI throws other error', async () => {

@@ -54,8 +54,9 @@ export function pickSignals(raw) {
   };
 }
 
-/** Parse and validate Claude's JSON answer; drops malformed and duplicate entries. */
+/** Parse and validate the model's JSON answer; drops malformed and duplicate entries. */
 export function parsePicks(text) {
+  if (!text.includes('{')) throw new Error('Model response contains no JSON');
   let parsed;
   try {
     parsed = JSON.parse(text);
@@ -63,7 +64,7 @@ export function parsePicks(text) {
     // Llama often wraps JSON in prose or fences: retry on the outermost {...}.
     parsed = JSON.parse(text.slice(text.indexOf('{'), text.lastIndexOf('}') + 1));
   }
-  if (!Array.isArray(parsed?.movies)) throw new Error('Claude response has no movies array');
+  if (!Array.isArray(parsed?.movies)) throw new Error('Model response has no movies array');
   const seen = new Set();
   const picks = [];
   for (const m of parsed.movies) {
@@ -106,4 +107,3 @@ export function finalizePool(items) {
   }
   return unique;
 }
-

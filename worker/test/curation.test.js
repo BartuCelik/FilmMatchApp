@@ -40,6 +40,10 @@ test('toPoolItem builds client-compatible item', () => {
   assert.equal(item.title, 'Başlangıç');
 });
 
+test('parsePicks throws clear error when no JSON', () => {
+  assert.throws(() => parsePicks('sorry'), /contains no JSON/);
+});
+
 test('finalizePool dedupes, caps at 8 and rejects tiny pools', () => {
   const items = Array.from({ length: 10 }, (_, i) => ({ tmdbId: i % 9 }));
   const pool = finalizePool(items);
