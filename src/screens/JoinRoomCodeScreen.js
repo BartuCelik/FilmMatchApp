@@ -12,6 +12,9 @@ import { StatusBar } from 'expo-status-bar';
 import { signInAnonymously } from 'firebase/auth';
 import { AppButton } from '../components/common/AppButton';
 import { AppText } from '../components/common/AppText';
+import { IconSquare } from '../components/common/IconSquare';
+import { WedgeBackground } from '../components/common/WedgeBackground';
+import { Ionicons } from '@expo/vector-icons';
 import { PreferencesHeaderControls } from '../components/common/PreferencesHeaderControls';
 import { useI18n } from '../hooks/useI18n';
 import { auth } from '../services/firebaseConfig';
@@ -92,11 +95,19 @@ export default function JoinRoomCodeScreen({ navigation, route }) {
     <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
       <StatusBar style="light" />
       <View style={styles.root}>
+        <WedgeBackground shape="list" />
         <View style={styles.topBar}>
+          <IconSquare
+            variant="accent"
+            onPress={() => navigation.goBack()}
+            accessibilityLabel={t('join_try_other')}
+          >
+            <Ionicons name="chevron-back" size={20} color={Colors.onAccent} />
+          </IconSquare>
           <PreferencesHeaderControls />
         </View>
 
-        <Text style={styles.title}>{t('join_title')}</Text>
+        <AppText variant="screenTitle" style={styles.title}>{t('join_title')}</AppText>
         <Text style={styles.subtitle}>{t('join_subtitle')}</Text>
 
         <Pressable style={styles.slotsRow} onPress={() => inputRef.current?.focus()}>
@@ -133,14 +144,6 @@ export default function JoinRoomCodeScreen({ navigation, route }) {
           disabled={code.length !== 6 || avatarId == null}
           style={styles.confirmBtn}
         />
-
-        <TouchableOpacity
-          style={styles.linkBtn}
-          onPress={() => navigation.goBack()}
-          activeOpacity={0.8}
-        >
-          <Text style={styles.linkText}>{t('join_try_other')}</Text>
-        </TouchableOpacity>
 
         {error ? (
           <AppText variant="error" style={[styles.error, { color: Colors.errorSoft }]}>

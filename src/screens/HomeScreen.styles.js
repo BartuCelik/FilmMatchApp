@@ -12,7 +12,7 @@ export function createHomeStyles() {
     },
     container: {
       flex: 1,
-      backgroundColor: Colors.surface,
+      backgroundColor: Colors.background,
     },
     topBar: {
       position: 'absolute',
@@ -41,6 +41,9 @@ export function createHomeStyles() {
       width: '100%',
       maxWidth: 360,
       alignItems: 'stretch',
+    },
+    profileCard: {
+      marginTop: 8,
     },
     logoBlock: {
       alignItems: 'center',
@@ -93,10 +96,9 @@ export function createHomeStyles() {
     avatarBubbleSelected: {
       borderColor: Colors.accent,
       backgroundColor: Colors.accentDeep,
-      shadowColor: Colors.gold,
-      shadowOpacity: 0.85,
-      shadowRadius: 14,
-      elevation: 8,
+      shadowOpacity: 0.5,
+      shadowRadius: 8,
+      elevation: 6,
     },
     avatarEmoji: {
       fontSize: 28,
@@ -115,12 +117,6 @@ export function createHomeStyles() {
     backLink: {
       marginTop: 16,
       alignSelf: 'center',
-      paddingVertical: 8,
-    },
-    backLinkText: {
-      fontSize: 15,
-      color: Colors.accent,
-      fontWeight: '600',
     },
     sectionSpacing: {
       marginTop: 8,

@@ -9,20 +9,18 @@ export function createJoinCodeStyles() {
     },
     root: {
       flex: 1,
-      backgroundColor: Colors.surface,
+      backgroundColor: Colors.background,
       paddingHorizontal: 22,
     },
     topBar: {
       flexDirection: 'row',
       alignItems: 'center',
-      justifyContent: 'flex-end',
+      justifyContent: 'space-between',
       paddingTop: 8,
       paddingBottom: 8,
     },
     title: {
       marginTop: 12,
-      fontSize: 22,
-      fontWeight: '800',
       color: Colors.textPrimary,
       textAlign: 'center',
     },
@@ -94,16 +92,6 @@ export function createJoinCodeStyles() {
     },
     confirmBtn: {
       marginTop: 20,
-    },
-    linkBtn: {
-      marginTop: 16,
-      alignSelf: 'center',
-      paddingVertical: 10,
-    },
-    linkText: {
-      fontSize: 15,
-      fontWeight: '600',
-      color: Colors.accent,
     },
     error: {
       marginTop: 12,

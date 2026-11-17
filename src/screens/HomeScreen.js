@@ -12,6 +12,10 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { signInAnonymously } from 'firebase/auth';
 import { AppButton } from '../components/common/AppButton';
 import { AppText } from '../components/common/AppText';
+import { IconSquare } from '../components/common/IconSquare';
+import { SurfaceCard } from '../components/common/SurfaceCard';
+import { WedgeBackground } from '../components/common/WedgeBackground';
+import { Ionicons } from '@expo/vector-icons';
 import { PreferencesHeaderControls } from '../components/common/PreferencesHeaderControls';
 import { FilmMatchLogo } from '../components/branding/FilmMatchLogo';
 import { AVATAR_CHOICES } from '../constants/avatars';
@@ -88,6 +92,7 @@ export default function HomeScreen({ navigation }) {
         keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
       >
         <View style={styles.container}>
+          <WedgeBackground shape="list" />
           <View style={[styles.topBar, { paddingTop: Math.max(insets.top, 10) }]}>
             <PreferencesHeaderControls />
           </View>
@@ -102,14 +107,11 @@ export default function HomeScreen({ navigation }) {
               <View style={styles.profileColumn}>
                 <View style={styles.logoBlock}>
                   <FilmMatchLogo
-                    accentColor={Colors.accent}
-                    accentSoft={Colors.accent}
-                    textColor={Colors.textPrimary}
-                    taglineColor={Colors.textMuted}
                     tagline={t('home_logo_tagline')}
                   />
                 </View>
 
+                <SurfaceCard style={styles.profileCard}>
                 <TextInput
                   style={styles.input}
                   placeholder={t('home_name_placeholder')}
@@ -145,6 +147,8 @@ export default function HomeScreen({ navigation }) {
                   })}
                 </ScrollView>
 
+                </SurfaceCard>
+
                 <AppButton
                   title={t('home_continue')}
                   onPress={handleContinue}
@@ -167,11 +171,14 @@ export default function HomeScreen({ navigation }) {
                   disabled={!profileComplete || isBusy}
                   style={styles.sectionSpacing}
                 />
-                <TouchableOpacity style={styles.backLink} onPress={() => setStep('profile')} activeOpacity={0.8}>
-                  <AppText variant="bodyStrong" style={[styles.backLinkText, { color: Colors.accent }]}>
-                    {t('home_back')}
-                  </AppText>
-                </TouchableOpacity>
+                <IconSquare
+                  variant="accent"
+                  onPress={() => setStep('profile')}
+                  accessibilityLabel={t('home_back')}
+                  style={styles.backLink}
+                >
+                  <Ionicons name="chevron-back" size={20} color={Colors.onAccent} />
+                </IconSquare>
               </View>
             )}
 
