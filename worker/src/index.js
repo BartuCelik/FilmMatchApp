@@ -46,7 +46,16 @@ export default {
         max_tokens: 1500,
       });
       const text = typeof result.response === 'string' ? result.response : JSON.stringify(result.response);
-      const resolved = await Promise.all(parsePicks(text).map((p) => resolveOnTmdb(env, p).catch(() => null)));
+      const picks = parsePicks(text);
+      let tmdbError = null;
+      const resolved = await Promise.all(
+        picks.map((p) => resolveOnTmdb(env, p).catch((e) => { tmdbError ??= String(e?.message ?? e); return null; })),
+      );
+      const matched = resolved.filter(Boolean).length;
+      if (matched < picks.length) {
+        console.warn(`tmdb matched ${matched}/${picks.length}`, tmdbError ?? '', picks.map((p) => p.originalTitle).join(' | ').slice(0, 300));
+      }
+      if (picks.length === 0) console.warn('model returned no usable picks:', text.slice(0, 300));
       return json({ moviePool: finalizePool(resolved.filter(Boolean)) });
     } catch (error) {
       const message = String(error?.message ?? error);
