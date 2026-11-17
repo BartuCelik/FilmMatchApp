@@ -66,7 +66,7 @@ Indigo token names (`indigo*`, `glowIndigo*`) are removed and call sites move to
 ### Screens
 
 - **Home, JoinRoomCode:** drop `getPalette(theme)` usage, use `Colors` directly; add wedge; logo recoloured (accent red + gold, no indigo).
-- **ModeSelection:** cards become `SurfaceCard` with `IconSquare` icons (🍿 Bize Seç, 🎬 Filmler, 📺 Diziler); selected card gets accent outline + accent icon tile. Mode titles/subtitles move into `src/i18n/strings.js` for all 5 locales (they are hard-coded mixed TR/EN today).
+- **ModeSelection:** cards become `SurfaceCard` with `IconSquare` icons (🍿 Bize Seç, 🎬 Filmler, 📺 Diziler); selected card gets accent outline + accent icon tile. Mode titles/subtitles move into `src/i18n/strings.js` for all 7 supported locales (tr, en, de, es, fr, it, ru) (they are hard-coded mixed TR/EN today).
 - **AiCurationQuestions:** recolour via tokens; header text "AI Kürasyon" → "Bize Seç"; quota message wording drops "AI" ("Bugünlük öneri hakkı doldu…").
 - **Swipe:** wedge behind the deck, two ghost cards behind the top poster (static, offset/scaled), poster chips (rating chip in gold), action buttons as rounded squares (✕ / ★ surface, ♥ accent gradient). All 22 hard-coded hex values replaced by tokens.
 - **GradientEnergySlider:** gold → red → deep red instead of indigo.
