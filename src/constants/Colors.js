@@ -32,24 +32,4 @@ export const Colors = {
 
   overlay: 'rgba(0, 0, 0, 0.55)',
   shadow: 'rgba(0,0,0,0.4)',
-
-  // legacy aliases — removed in Task 7
-  indigo: '#D23C43',
-  indigoDark: '#9E1F2E',
-  indigoLight: '#D23C43',
-  indigoGlow: '#D9A441',
-  indigoMuted: '#3A2126',
-  indigoTrack: '#3A2126',
-  surfaceMuted: '#3A2126',
-  surfaceCard: '#231518',
-  borderLight: '#3A2427',
-  borderAccent: '#3A2427',
-  textOnAccent: '#FFF3EC',
-  trackUnderlay: '#2C1A1E',
-  sliderMaxTrack: 'rgba(23,14,16,0.72)',
-  glowIndigo: 'rgba(0,0,0,0.4)',
-  glowIndigoStrong: 'rgba(0,0,0,0.4)',
-  glowGreen: 'rgba(34, 197, 94, 0.5)',
-  glowGreenStrong: 'rgba(74, 222, 128, 0.75)',
-  glowError: 'rgba(248, 113, 113, 0.55)',
 };
