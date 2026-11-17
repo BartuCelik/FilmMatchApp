@@ -14,6 +14,8 @@ import {
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AppButton } from '../components/common/AppButton';
 import { AppText } from '../components/common/AppText';
+import { WedgeBackground } from '../components/common/WedgeBackground';
+import { useI18n } from '../hooks/useI18n';
 import { GradientEnergySlider } from '../components/common/GradientEnergySlider';
 import { Colors } from '../constants/Colors';
 import { auth } from '../services/firebaseConfig';
@@ -44,6 +46,7 @@ function allParticipantsHaveResponses(participants, responses) {
 }
 
 export default function AiCurationQuestionsScreen({ navigation, route }) {
+  const { t } = useI18n();
   const merged = useMergedRouteParams(route);
   const { username = '', sessionId } = merged;
   const userId = auth.currentUser?.uid ?? null;
@@ -221,6 +224,7 @@ export default function AiCurationQuestionsScreen({ navigation, route }) {
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
       <View style={styles.root}>
+        <WedgeBackground shape="list" />
         <KeyboardAvoidingView
           style={styles.keyboardAvoid}
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -238,7 +242,7 @@ export default function AiCurationQuestionsScreen({ navigation, route }) {
             }}
           >
             <AppText variant="kicker" style={styles.kickerTint}>
-              AI Kürasyon
+              {t('mode_ai_title')}
             </AppText>
             <AppText variant="screenTitle" style={styles.titleHero}>
               {username ? `${username}, ` : ''}Let&apos;s pick
@@ -357,7 +361,7 @@ export default function AiCurationQuestionsScreen({ navigation, route }) {
 
             {partnerWaiting ? (
               <View style={styles.banner}>
-                <ActivityIndicator color={Colors.indigoGlow} />
+                <ActivityIndicator color={Colors.gold} />
                 <AppText variant="bodyStrong" style={styles.bannerText}>
                   Partnerinin cevapları bekleniyor...
                 </AppText>
@@ -366,7 +370,7 @@ export default function AiCurationQuestionsScreen({ navigation, route }) {
 
             {poolGenerating ? (
               <View style={styles.banner}>
-                <ActivityIndicator color={Colors.indigoGlow} />
+                <ActivityIndicator color={Colors.gold} />
                 <AppText variant="bodyStrong" style={styles.bannerText}>
                   Size özel film havuzu hazırlanıyor...
                 </AppText>
@@ -377,7 +381,7 @@ export default function AiCurationQuestionsScreen({ navigation, route }) {
               <>
                 <AppText variant="error" style={styles.error}>
                   {aiStatus === 'limit'
-                    ? 'AI önerileri bugünlük doldu. Film ya da Dizi modunu deneyebilirsiniz.'
+                    ? t('curation_quota_reached')
                     : aiStatus === 'failed'
                       ? 'Öneriler hazırlanamadı. Film ya da Dizi modunu deneyebilirsiniz.'
                       : 'Öneriler hazırlanamadı.'}
@@ -424,25 +428,24 @@ const styles = StyleSheet.create({
     paddingTop: 16,
   },
   kickerTint: {
-    color: Colors.indigoLight,
+    color: Colors.gold,
   },
   titleHero: {
     marginTop: 8,
     color: Colors.textPrimary,
-    fontWeight: '900',
     letterSpacing: 0.2,
   },
   progressTrack: {
     marginTop: 22,
     height: 6,
     borderRadius: 4,
-    backgroundColor: Colors.trackUnderlay,
+    backgroundColor: Colors.surface2,
     overflow: 'hidden',
   },
   progressFill: {
     height: '100%',
     borderRadius: 4,
-    backgroundColor: Colors.indigo,
+    backgroundColor: Colors.accent,
   },
   stepMeta: {
     marginTop: 8,
@@ -470,21 +473,20 @@ const styles = StyleSheet.create({
     width: '30%',
     minWidth: 96,
     flexGrow: 1,
-    backgroundColor: Colors.surfaceMuted,
+    backgroundColor: Colors.surface2,
     borderRadius: 14,
     paddingVertical: 12,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: Colors.borderLight,
+    borderColor: Colors.border,
   },
   moodChipActive: {
-    borderColor: Colors.indigo,
-    backgroundColor: Colors.indigoTrack,
+    borderColor: Colors.accent,
+    backgroundColor: Colors.surface2,
   },
   moodEmoji: {
     fontSize: 26,
     color: Colors.textPrimary,
-    fontWeight: '500',
   },
   moodLabel: {
     marginTop: 4,
@@ -506,7 +508,7 @@ const styles = StyleSheet.create({
     color: Colors.textPrimary,
     fontSize: 15,
     borderWidth: 1,
-    borderColor: Colors.borderLight,
+    borderColor: Colors.border,
     textAlignVertical: 'top',
   },
   energyValue: {
@@ -530,13 +532,13 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     paddingHorizontal: 16,
     borderRadius: 999,
-    backgroundColor: Colors.surfaceMuted,
+    backgroundColor: Colors.surface2,
     borderWidth: 1,
-    borderColor: Colors.borderLight,
+    borderColor: Colors.border,
   },
   chipOn: {
-    backgroundColor: Colors.indigoTrack,
-    borderColor: Colors.indigo,
+    backgroundColor: Colors.surface2,
+    borderColor: Colors.accent,
   },
   chipText: {
     color: Colors.textSecondary,
@@ -553,15 +555,15 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    backgroundColor: Colors.surfaceCard,
+    backgroundColor: Colors.surface,
     padding: 14,
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: Colors.borderAccent,
+    borderColor: Colors.border,
   },
   bannerText: {
     flex: 1,
-    color: Colors.textOnAccent,
+    color: Colors.textPrimary,
   },
   success: {
     marginTop: 14,
