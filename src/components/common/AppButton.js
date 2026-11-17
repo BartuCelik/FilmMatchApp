@@ -1,6 +1,7 @@
 import React from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
 import * as Haptics from 'expo-haptics';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Colors } from '../../constants/Colors';
 import { AppText } from './AppText';
 
@@ -31,7 +32,6 @@ export function AppButton({
     <Pressable
       style={({ pressed }) => [
         styles.base,
-        variant === 'primary' && styles.primary,
         variant === 'secondary' && styles.secondary,
         busy && styles.disabled,
         pressed && !busy && styles.pressed,
@@ -42,11 +42,22 @@ export function AppButton({
       accessibilityRole="button"
       accessibilityState={{ disabled: busy, busy: loading }}
     >
+      {variant === 'primary' && (
+        <LinearGradient
+          colors={[Colors.accent, Colors.accentDeep]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={StyleSheet.absoluteFill}
+        />
+      )}
       <View style={styles.inner}>
         {loading ? (
-          <ActivityIndicator color={Colors.textPrimary} />
+          <ActivityIndicator color={variant === 'primary' ? Colors.onAccent : Colors.textPrimary} />
         ) : (
-          <AppText variant={textVariant} style={variant === 'secondary' && styles.secondaryText}>
+          <AppText
+            variant={textVariant}
+            style={variant === 'primary' ? styles.primaryText : styles.secondaryText}
+          >
             {title}
           </AppText>
         )}
@@ -71,18 +82,16 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     width: '100%',
   },
-  primary: {
-    backgroundColor: Colors.indigo,
-    shadowColor: Colors.glowIndigoStrong,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.45,
-    shadowRadius: 12,
-    elevation: 8,
-  },
   secondary: {
-    backgroundColor: Colors.surfaceMuted,
-    borderWidth: 1,
-    borderColor: Colors.borderLight,
+    backgroundColor: Colors.surface,
+    shadowColor: Colors.shadow,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 1,
+    shadowRadius: 6,
+    elevation: 3,
+  },
+  primaryText: {
+    color: Colors.onAccent,
   },
   secondaryText: {
     color: Colors.textPrimary,

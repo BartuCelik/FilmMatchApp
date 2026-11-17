@@ -11,7 +11,7 @@ export function GradientEnergySlider({ value, onValueChange, style }) {
   return (
     <View style={[styles.wrap, style]}>
       <LinearGradient
-        colors={[Colors.indigoDark, Colors.indigo, Colors.indigoLight]}
+        colors={[Colors.gold, Colors.accent, Colors.accentDeep]}
         start={{ x: 0, y: 0.5 }}
         end={{ x: 1, y: 0.5 }}
         style={styles.gradient}
@@ -25,8 +25,8 @@ export function GradientEnergySlider({ value, onValueChange, style }) {
           value={value}
           onValueChange={onValueChange}
           minimumTrackTintColor="transparent"
-          maximumTrackTintColor={Colors.sliderMaxTrack}
-          thumbTintColor={Colors.indigoGlow}
+          maximumTrackTintColor={'rgba(23,14,16,0.72)'}
+          thumbTintColor={Colors.gold}
         />
       </View>
     </View>
