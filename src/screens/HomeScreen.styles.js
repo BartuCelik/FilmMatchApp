@@ -1,20 +1,18 @@
 import { StyleSheet } from 'react-native';
+import { Colors } from '../constants/Colors';
 
-/**
- * @param {Record<string, string>} c — getPalette(theme)
- */
-export function createHomeStyles(c) {
+export function createHomeStyles() {
   return StyleSheet.create({
     safe: {
       flex: 1,
-      backgroundColor: c.background,
+      backgroundColor: Colors.background,
     },
     keyboard: {
       flex: 1,
     },
     container: {
       flex: 1,
-      backgroundColor: c.surface,
+      backgroundColor: Colors.surface,
     },
     topBar: {
       position: 'absolute',
@@ -50,20 +48,20 @@ export function createHomeStyles(c) {
     },
     input: {
       width: '100%',
-      backgroundColor: c.surfaceMuted,
-      color: c.textPrimary,
+      backgroundColor: Colors.surface2,
+      color: Colors.textPrimary,
       paddingHorizontal: 16,
       paddingVertical: 14,
       borderRadius: 14,
       fontSize: 16,
       borderWidth: 1,
-      borderColor: c.borderLight,
+      borderColor: Colors.border,
       textAlign: 'center',
     },
     avatarSectionLabel: {
       marginTop: 20,
       marginBottom: 12,
-      color: c.textSecondary,
+      color: Colors.textSecondary,
       textAlign: 'center',
       alignSelf: 'center',
     },
@@ -80,29 +78,29 @@ export function createHomeStyles(c) {
       width: 58,
       height: 58,
       borderRadius: 29,
-      backgroundColor: c.surfaceElevated,
+      backgroundColor: Colors.surfaceElevated,
       borderWidth: 2,
-      borderColor: c.borderLight,
+      borderColor: Colors.border,
       alignItems: 'center',
       justifyContent: 'center',
       marginHorizontal: 6,
-      shadowColor: c.glowIndigo,
+      shadowColor: Colors.shadow,
       shadowOffset: { width: 0, height: 0 },
       shadowOpacity: 0.35,
       shadowRadius: 8,
       elevation: 4,
     },
     avatarBubbleSelected: {
-      borderColor: c.indigoLight,
-      backgroundColor: c.indigoTrack,
-      shadowColor: c.indigoGlow,
+      borderColor: Colors.accent,
+      backgroundColor: Colors.accentDeep,
+      shadowColor: Colors.gold,
       shadowOpacity: 0.85,
       shadowRadius: 14,
       elevation: 8,
     },
     avatarEmoji: {
       fontSize: 28,
-      color: c.textPrimary,
+      color: Colors.textPrimary,
     },
     continueBtn: {
       marginTop: 32,
@@ -121,7 +119,7 @@ export function createHomeStyles(c) {
     },
     backLinkText: {
       fontSize: 15,
-      color: c.indigoLight,
+      color: Colors.accent,
       fontWeight: '600',
     },
     sectionSpacing: {

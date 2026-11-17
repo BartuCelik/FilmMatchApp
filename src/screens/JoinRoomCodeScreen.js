@@ -13,12 +13,11 @@ import { signInAnonymously } from 'firebase/auth';
 import { AppButton } from '../components/common/AppButton';
 import { AppText } from '../components/common/AppText';
 import { PreferencesHeaderControls } from '../components/common/PreferencesHeaderControls';
-import { useAppPreferences } from '../context/AppPreferencesContext';
 import { useI18n } from '../hooks/useI18n';
 import { auth } from '../services/firebaseConfig';
 import { setSessionParams } from '../services/navigationService';
 import { joinMatchSession } from '../services/sessionService';
-import { getPalette } from '../theme/palettes';
+import { Colors } from '../constants/Colors';
 import { createJoinCodeStyles } from './JoinRoomCodeScreen.styles';
 
 async function ensureAnonymousUser() {
@@ -35,10 +34,8 @@ const ROWS = [
 ];
 
 export default function JoinRoomCodeScreen({ navigation, route }) {
-  const { theme } = useAppPreferences();
   const { t } = useI18n();
-  const palette = useMemo(() => getPalette(theme), [theme]);
-  const styles = useMemo(() => createJoinCodeStyles(palette), [palette]);
+  const styles = useMemo(() => createJoinCodeStyles(), []);
 
   const username = (route.params?.username ?? '').trim() || 'Misafir';
   const avatarId = route.params?.avatarId ?? null;
@@ -93,10 +90,10 @@ export default function JoinRoomCodeScreen({ navigation, route }) {
 
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
-      <StatusBar style={theme === 'dark' ? 'light' : 'dark'} />
+      <StatusBar style="light" />
       <View style={styles.root}>
         <View style={styles.topBar}>
-          <PreferencesHeaderControls palette={palette} />
+          <PreferencesHeaderControls />
         </View>
 
         <Text style={styles.title}>{t('join_title')}</Text>
@@ -146,7 +143,7 @@ export default function JoinRoomCodeScreen({ navigation, route }) {
         </TouchableOpacity>
 
         {error ? (
-          <AppText variant="error" style={[styles.error, { color: palette.errorSoft }]}>
+          <AppText variant="error" style={[styles.error, { color: Colors.errorSoft }]}>
             {error}
           </AppText>
         ) : null}
