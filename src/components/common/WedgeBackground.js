@@ -8,6 +8,8 @@ const POINTS = {
   list: '70,0 100,0 100,40 0,78 0,55',
 };
 
+const OPACITY = { deck: 0.95, list: 0.3 };
+
 export function WedgeBackground({ shape = 'deck' }) {
   const id = useRef(`fmwedge-${Math.random().toString(36).slice(2, 10)}`).current;
   return (
@@ -25,7 +27,7 @@ export function WedgeBackground({ shape = 'deck' }) {
           <Stop offset="1" stopColor={Colors.accentDeep} />
         </LinearGradient>
       </Defs>
-      <Polygon points={POINTS[shape] ?? POINTS.deck} fill={`url(#${id})`} opacity={0.95} />
+      <Polygon points={POINTS[shape] ?? POINTS.deck} fill={`url(#${id})`} opacity={OPACITY[shape] ?? OPACITY.deck} />
     </Svg>
   );
 }

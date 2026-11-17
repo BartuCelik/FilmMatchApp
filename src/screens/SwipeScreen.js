@@ -305,7 +305,7 @@ export default function SwipeScreen({ navigation, route }) {
       <View style={styles.bg}>
         <WedgeBackground shape="deck" />
         <View style={styles.topRow}>
-          <IconSquare onPress={() => navigation.goBack()} accessibilityLabel="Back">
+          <IconSquare onPress={() => navigation.goBack()} accessibilityLabel={t('home_back')}>
             <Ionicons name="arrow-back" size={20} color={Colors.textPrimary} />
           </IconSquare>
           <Text style={styles.title}>{t('swipe_title')}</Text>
@@ -416,13 +416,28 @@ export default function SwipeScreen({ navigation, route }) {
         </View>
 
         <View style={styles.actionsRow}>
-          <Pressable onPress={() => triggerSwipe('left')} style={[styles.actionBtn, styles.actionSide]}>
+          <Pressable
+            onPress={() => triggerSwipe('left')}
+            accessibilityRole="button"
+            accessibilityLabel={t('swipe_dislike')}
+            style={({ pressed }) => [styles.actionBtn, styles.actionSide, pressed && styles.actionPressed]}
+          >
             <Ionicons name="close" size={28} color={Colors.textPrimary} />
           </Pressable>
-          <Pressable onPress={() => setDetailOpen(true)} style={[styles.actionBtn, styles.actionSide]}>
+          <Pressable
+            onPress={() => setDetailOpen(true)}
+            accessibilityRole="button"
+            accessibilityLabel={t('swipe_details')}
+            style={({ pressed }) => [styles.actionBtn, styles.actionSide, pressed && styles.actionPressed]}
+          >
             <Ionicons name="eye-outline" size={24} color={Colors.textPrimary} />
           </Pressable>
-          <Pressable onPress={() => triggerSwipe('right')} style={styles.actionBtnLike}>
+          <Pressable
+            onPress={() => triggerSwipe('right')}
+            accessibilityRole="button"
+            accessibilityLabel={t('swipe_like')}
+            style={({ pressed }) => [styles.actionBtnLike, pressed && styles.actionPressed]}
+          >
             <LinearGradient
               colors={[Colors.accent, Colors.accentDeep]}
               start={{ x: 0, y: 0 }}
@@ -544,11 +559,11 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.surface2,
     opacity: 0.3,
   },
-  poster: { width: '100%', height: '72%' },
+  poster: { width: '100%', flex: 1 },
   swipeOverlay: { ...StyleSheet.absoluteFillObject },
   likeGlow: { backgroundColor: 'rgba(34, 197, 94, 0.35)' },
   dislikeGlow: { backgroundColor: 'rgba(248, 113, 113, 0.35)' },
-  metaWrap: { flex: 1, paddingHorizontal: 16, paddingTop: 12, paddingBottom: 14 },
+  metaWrap: { paddingHorizontal: 16, paddingTop: 12, paddingBottom: 14 },
   movieTitle: { color: Colors.textPrimary, fontSize: 30, fontFamily: Fonts.display },
   movieDesc: { color: Colors.textSecondary, fontSize: 15, lineHeight: 20, marginTop: 4 },
   tagRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 10 },
@@ -617,6 +632,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  actionPressed: { opacity: 0.85 },
   actionSide: {
     backgroundColor: Colors.surface,
     borderWidth: 1,

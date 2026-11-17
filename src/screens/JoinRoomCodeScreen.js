@@ -100,7 +100,7 @@ export default function JoinRoomCodeScreen({ navigation, route }) {
           <IconSquare
             variant="accent"
             onPress={() => navigation.goBack()}
-            accessibilityLabel={t('join_try_other')}
+            accessibilityLabel={t('home_back')}
           >
             <Ionicons name="chevron-back" size={20} color={Colors.onAccent} />
           </IconSquare>

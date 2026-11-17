@@ -32,6 +32,7 @@ export function IconSquare({
     return (
       <Pressable
         onPress={onPress}
+        hitSlop={8}
         style={({ pressed }) => [...baseStyle, pressed && styles.pressed]}
         accessibilityRole="button"
         accessibilityLabel={accessibilityLabel}
