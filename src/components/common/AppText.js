@@ -1,29 +1,29 @@
 import React from 'react';
 import { StyleSheet, Text } from 'react-native';
-import { Colors } from '../../constants/Colors';
+import { Colors, Fonts } from '../../constants/Colors';
 
 const VARIANTS = StyleSheet.create({
   hero: {
     color: Colors.textPrimary,
     fontSize: 34,
-    fontWeight: '800',
-    letterSpacing: 1.2,
+    fontFamily: Fonts.display,
+    letterSpacing: 0.5,
   },
   title: {
     color: Colors.textPrimary,
     fontSize: 32,
-    fontWeight: '800',
+    fontFamily: Fonts.display,
   },
   screenTitle: {
     color: Colors.textPrimary,
     fontSize: 26,
-    fontWeight: '800',
+    fontFamily: Fonts.display,
     lineHeight: 32,
   },
   section: {
     color: Colors.textPrimary,
     fontSize: 18,
-    fontWeight: '700',
+    fontFamily: Fonts.display,
   },
   body: {
     color: Colors.textSecondary,
@@ -41,7 +41,7 @@ const VARIANTS = StyleSheet.create({
     fontWeight: '600',
   },
   kicker: {
-    color: Colors.indigoLight,
+    color: Colors.gold,
     fontSize: 13,
     fontWeight: '700',
     letterSpacing: 1.2,

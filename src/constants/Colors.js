@@ -1,29 +1,26 @@
 /**
- * Dark-first palette: deep blacks, indigo accent, vibrant greens for match / success.
+ * Kadife Perde: dark-only burgundy / velvet red / gold palette.
  */
+export const Fonts = {
+  display: 'DMSerifDisplay_400Regular',
+};
+
 export const Colors = {
-  background: '#0D0D0D',
-  surface: '#121212',
-  surfaceElevated: '#161616',
-  surfaceMuted: '#1E1E1E',
-  surfaceCard: '#1A1520',
+  background: '#170E10',
+  surface: '#231518',
+  surfaceElevated: '#2C1A1E',
+  surface2: '#3A2126',
+  border: '#3A2427',
 
-  border: '#252525',
-  borderLight: '#2A2A2A',
-  borderAccent: '#2E2540',
+  textPrimary: '#F7E9E4',
+  textSecondary: '#D6BFBB',
+  textMuted: '#BFA2A0',
+  textSubtle: '#8C6F6E',
 
-  textPrimary: '#FFFFFF',
-  textSecondary: '#B8B8B8',
-  textMuted: '#9A9A9A',
-  textSubtle: '#6A6A6A',
-  textOnAccent: '#E6E0F0',
-
-  indigo: '#6366F1',
-  indigoDark: '#4F46E5',
-  indigoLight: '#818CF8',
-  indigoMuted: '#312E81',
-  indigoGlow: '#A5B4FC',
-  indigoTrack: '#312E81',
+  accent: '#D23C43',
+  accentDeep: '#9E1F2E',
+  onAccent: '#FFF3EC',
+  gold: '#D9A441',
 
   match: '#22C55E',
   matchBright: '#4ADE80',
@@ -34,12 +31,24 @@ export const Colors = {
   errorSoft: '#FF6B6B',
 
   overlay: 'rgba(0, 0, 0, 0.55)',
-  trackUnderlay: '#242424',
-  sliderMaxTrack: 'rgba(13, 13, 13, 0.72)',
+  shadow: 'rgba(0,0,0,0.4)',
 
-  /** Soft glows (shadow / border) */
-  glowIndigo: 'rgba(99, 102, 241, 0.55)',
-  glowIndigoStrong: 'rgba(129, 140, 248, 0.85)',
+  // legacy aliases — removed in Task 7
+  indigo: '#D23C43',
+  indigoDark: '#9E1F2E',
+  indigoLight: '#D23C43',
+  indigoGlow: '#D9A441',
+  indigoMuted: '#3A2126',
+  indigoTrack: '#3A2126',
+  surfaceMuted: '#3A2126',
+  surfaceCard: '#231518',
+  borderLight: '#3A2427',
+  borderAccent: '#3A2427',
+  textOnAccent: '#FFF3EC',
+  trackUnderlay: '#2C1A1E',
+  sliderMaxTrack: 'rgba(23,14,16,0.72)',
+  glowIndigo: 'rgba(0,0,0,0.4)',
+  glowIndigoStrong: 'rgba(0,0,0,0.4)',
   glowGreen: 'rgba(34, 197, 94, 0.5)',
   glowGreenStrong: 'rgba(74, 222, 128, 0.75)',
   glowError: 'rgba(248, 113, 113, 0.55)',
