@@ -23,7 +23,9 @@ import {
 } from 'firebase/firestore';
 import { auth, db } from '../services/firebaseConfig';
 import { getScreenRouteParams } from '../services/navigationService';
-import { Colors } from '../constants/Colors';
+import { Colors, Fonts } from '../constants/Colors';
+import { WedgeBackground } from '../components/common/WedgeBackground';
+import { IconSquare } from '../components/common/IconSquare';
 import { useSessionDisbandSync } from '../hooks/useSessionDisbandSync';
 import { useI18n } from '../hooks/useI18n';
 import { fetchContent, fetchContentDetails } from '../services/api';
@@ -284,7 +286,7 @@ export default function SwipeScreen({ navigation, route }) {
     return (
       <SafeAreaView style={styles.safe}>
         <View style={styles.center}>
-          <ActivityIndicator color={Colors.indigoLight} />
+          <ActivityIndicator color={Colors.accent} />
         </View>
       </SafeAreaView>
     );
@@ -294,11 +296,12 @@ export default function SwipeScreen({ navigation, route }) {
 
   return (
     <SafeAreaView style={styles.safe}>
-      <LinearGradient colors={['#0C0D12', '#0E0C16', '#1A0F24']} style={styles.bg}>
+      <View style={styles.bg}>
+        <WedgeBackground shape="deck" />
         <View style={styles.topRow}>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.iconBtn} activeOpacity={0.85}>
+          <IconSquare onPress={() => navigation.goBack()} accessibilityLabel="Back">
             <Ionicons name="arrow-back" size={20} color={Colors.textPrimary} />
-          </TouchableOpacity>
+          </IconSquare>
           <Text style={styles.title}>{t('swipe_title')}</Text>
           <View style={styles.progressWrap}>
             <Text style={styles.counter}>
@@ -311,16 +314,9 @@ export default function SwipeScreen({ navigation, route }) {
         </View>
 
         <View style={styles.stackWrap}>
-          {thirdMovie ? (
-            <View style={[styles.card, styles.backCard2]}>
-              <Image source={{ uri: thirdMovie.image || undefined }} style={styles.poster} />
-            </View>
-          ) : null}
-          {nextMovie ? (
-            <View style={[styles.card, styles.backCard1]}>
-              <Image source={{ uri: nextMovie.image || undefined }} style={styles.poster} />
-            </View>
-          ) : null}
+          {/* Ghosts: only when >=3 / >=2 cards remain (current included). */}
+          {thirdMovie ? <View pointerEvents="none" style={[styles.card, styles.ghost2]} /> : null}
+          {nextMovie ? <View pointerEvents="none" style={[styles.card, styles.ghost1]} /> : null}
 
           {currentMovie ? (
             <Animated.View style={[styles.card, topCardStyle]} {...panResponder.panHandlers}>
@@ -329,7 +325,7 @@ export default function SwipeScreen({ navigation, route }) {
               <Animated.View pointerEvents="none" style={[styles.swipeOverlay, styles.dislikeGlow, dislikeOverlay]} />
 
               <LinearGradient
-                colors={['transparent', 'rgba(7,7,10,0.95)']}
+                colors={['transparent', 'rgba(23,14,16,0.95)']}
                 style={styles.metaWrap}
               >
                 <Text style={styles.movieTitle} numberOfLines={1}>
@@ -340,8 +336,11 @@ export default function SwipeScreen({ navigation, route }) {
                 </Text>
                 <View style={styles.tagRow}>
                   {movieTags(currentMovie).map((tag) => (
-                    <View key={`${currentMovie.id}-${tag}`} style={styles.tagPill}>
-                      <Text style={styles.tagText}>{tag}</Text>
+                    <View
+                      key={`${currentMovie.id}-${tag}`}
+                      style={[styles.tagPill, tag.startsWith('★') && styles.ratingPill]}
+                    >
+                      <Text style={[styles.tagText, tag.startsWith('★') && styles.ratingText]}>{tag}</Text>
                     </View>
                   ))}
                 </View>
@@ -386,26 +385,27 @@ export default function SwipeScreen({ navigation, route }) {
         </View>
 
         <View style={styles.actionsRow}>
-          <LinearGradient colors={['#2B2D33', '#1D1E22']} style={styles.actionBtn}>
-            <TouchableOpacity onPress={() => triggerSwipe('left')} style={styles.actionTouch}>
-              <Ionicons name="close" size={34} color={Colors.textPrimary} />
-            </TouchableOpacity>
-          </LinearGradient>
-          <LinearGradient colors={['#2A2A30', '#1C1C22']} style={styles.actionBtn}>
-            <TouchableOpacity onPress={() => setDetailOpen(true)} style={styles.actionTouch}>
-              <Ionicons name="eye-outline" size={26} color={Colors.textPrimary} />
-            </TouchableOpacity>
-          </LinearGradient>
-          <LinearGradient colors={['#F97316', '#EF4444']} style={styles.actionBtn}>
-            <TouchableOpacity onPress={() => triggerSwipe('right')} style={styles.actionTouch}>
-              <Ionicons name="heart" size={28} color="#FFF" />
-            </TouchableOpacity>
-          </LinearGradient>
+          <Pressable onPress={() => triggerSwipe('left')} style={[styles.actionBtn, styles.actionSide]}>
+            <Ionicons name="close" size={28} color={Colors.textPrimary} />
+          </Pressable>
+          <Pressable onPress={() => setDetailOpen(true)} style={[styles.actionBtn, styles.actionSide]}>
+            <Ionicons name="eye-outline" size={24} color={Colors.textPrimary} />
+          </Pressable>
+          <Pressable onPress={() => triggerSwipe('right')} style={styles.actionBtnLike}>
+            <LinearGradient
+              colors={[Colors.accent, Colors.accentDeep]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.actionLikeFill}
+            >
+              <Ionicons name="heart" size={28} color={Colors.onAccent} />
+            </LinearGradient>
+          </Pressable>
         </View>
 
         {matchToastText ? (
           <View style={styles.matchToast}>
-            <Ionicons name="sparkles" size={16} color="#FFFFFF" />
+            <Ionicons name="sparkles" size={16} color={Colors.textPrimary} />
             <Text style={styles.matchToastText}>{matchToastText}</Text>
           </View>
         ) : null}
@@ -414,7 +414,7 @@ export default function SwipeScreen({ navigation, route }) {
             <Text style={styles.statusToastText}>{statusToastText}</Text>
           </View>
         ) : null}
-      </LinearGradient>
+      </View>
 
       <Modal visible={detailOpen} transparent animationType="fade" onRequestClose={() => setDetailOpen(false)}>
         <View style={styles.modalBackdrop}>
@@ -458,8 +458,8 @@ export default function SwipeScreen({ navigation, route }) {
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: '#0B0B10' },
-  bg: { flex: 1, paddingHorizontal: 18, paddingTop: 4, paddingBottom: 24 },
+  safe: { flex: 1, backgroundColor: Colors.background },
+  bg: { flex: 1, backgroundColor: Colors.background, paddingHorizontal: 18, paddingTop: 4, paddingBottom: 24 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   topRow: {
     flexDirection: 'row',
@@ -467,17 +467,9 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginBottom: 14,
   },
-  iconBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(255,255,255,0.08)',
-  },
-  title: { color: '#FFF', fontSize: 18, fontWeight: '700' },
+  title: { color: Colors.textPrimary, fontSize: 20, fontFamily: Fonts.display },
   progressWrap: { minWidth: 72, alignItems: 'flex-end' },
-  counter: { color: '#E9E9E9', fontSize: 16, fontWeight: '700' },
+  counter: { color: Colors.textPrimary, fontSize: 16, fontWeight: '700' },
   progressTrack: {
     marginTop: 5,
     width: 72,
@@ -489,7 +481,7 @@ const styles = StyleSheet.create({
   progressFill: {
     height: '100%',
     borderRadius: 999,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: Colors.gold,
   },
   stackWrap: {
     flex: 1,
@@ -502,42 +494,46 @@ const styles = StyleSheet.create({
     height: CARD_HEIGHT,
     borderRadius: 28,
     overflow: 'hidden',
-    backgroundColor: '#1A1A1A',
+    backgroundColor: Colors.surface,
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.08)',
-    shadowColor: '#000',
+    shadowColor: Colors.shadow,
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.3,
     shadowRadius: 16,
     elevation: 10,
   },
-  backCard1: {
+  ghost1: {
     position: 'absolute',
-    transform: [{ scale: 0.97 }, { translateY: 10 }],
-    opacity: 0.8,
-  },
-  backCard2: {
-    position: 'absolute',
-    transform: [{ scale: 0.94 }, { translateY: 20 }],
+    backgroundColor: Colors.surface2,
+    transform: [{ translateY: -10 }, { scale: 0.94 }],
     opacity: 0.55,
+  },
+  ghost2: {
+    position: 'absolute',
+    backgroundColor: Colors.surface2,
+    transform: [{ translateY: -20 }, { scale: 0.88 }],
+    opacity: 0.3,
   },
   poster: { width: '100%', height: '72%' },
   swipeOverlay: { ...StyleSheet.absoluteFillObject },
-  likeGlow: { backgroundColor: 'rgba(22, 163, 74, 0.35)' },
-  dislikeGlow: { backgroundColor: 'rgba(220, 38, 38, 0.35)' },
+  likeGlow: { backgroundColor: 'rgba(34, 197, 94, 0.35)' },
+  dislikeGlow: { backgroundColor: 'rgba(248, 113, 113, 0.35)' },
   metaWrap: { flex: 1, paddingHorizontal: 16, paddingTop: 12, paddingBottom: 14 },
-  movieTitle: { color: '#FFF', fontSize: 34, fontWeight: '800' },
-  movieDesc: { color: '#D2D2D2', fontSize: 15, lineHeight: 20, marginTop: 4 },
+  movieTitle: { color: Colors.textPrimary, fontSize: 30, fontFamily: Fonts.display },
+  movieDesc: { color: Colors.textSecondary, fontSize: 15, lineHeight: 20, marginTop: 4 },
   tagRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 10 },
   tagPill: {
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 999,
-    backgroundColor: 'rgba(255,255,255,0.1)',
+    backgroundColor: 'rgba(23,14,16,0.6)',
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.16)',
   },
-  tagText: { color: '#EFEFEF', fontSize: 12, fontWeight: '600' },
+  tagText: { color: Colors.textPrimary, fontSize: 12, fontWeight: '600' },
+  ratingPill: { backgroundColor: Colors.gold, borderColor: Colors.gold },
+  ratingText: { color: Colors.background, fontWeight: '700' },
   providersRow: {
     marginTop: 10,
     flexDirection: 'row',
@@ -571,14 +567,14 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   providerPlusText: {
-    color: '#FFFFFF',
+    color: Colors.textPrimary,
     fontSize: 16,
     fontWeight: '700',
     marginTop: -1,
   },
   doneCard: { alignItems: 'center', justifyContent: 'center' },
-  doneTitle: { color: '#FFF', fontSize: 22, fontWeight: '700' },
-  doneSub: { marginTop: 8, color: '#C8C8C8', fontSize: 15 },
+  doneTitle: { color: Colors.textPrimary, fontSize: 24, fontFamily: Fonts.display },
+  doneSub: { marginTop: 8, color: Colors.textSecondary, fontSize: 15 },
   actionsRow: {
     marginTop: 20,
     flexDirection: 'row',
@@ -586,16 +582,38 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   actionBtn: {
-    width: 76,
-    height: 76,
-    borderRadius: 38,
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.42,
-    shadowRadius: 14,
-    elevation: 10,
+    width: 54,
+    height: 54,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  actionTouch: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  actionSide: {
+    backgroundColor: Colors.surface,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    shadowColor: Colors.shadow,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 1,
+    shadowRadius: 10,
+    elevation: 6,
+  },
+  actionBtnLike: {
+    width: 62,
+    height: 62,
+    borderRadius: 20,
+    shadowColor: Colors.shadow,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 1,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  actionLikeFill: {
+    flex: 1,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   matchToast: {
     position: 'absolute',
     top: 86,
@@ -604,27 +622,27 @@ const styles = StyleSheet.create({
     paddingVertical: 11,
     paddingHorizontal: 14,
     borderRadius: 12,
-    backgroundColor: 'rgba(16, 185, 129, 0.88)',
+    backgroundColor: 'rgba(34, 197, 94, 0.88)',
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.24)',
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    shadowColor: '#10B981',
+    shadowColor: Colors.shadow,
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.35,
+    shadowOpacity: 1,
     shadowRadius: 10,
     elevation: 7,
   },
   matchToastText: {
     flex: 1,
-    color: '#FFFFFF',
+    color: Colors.textPrimary,
     fontSize: 14,
     fontWeight: '700',
   },
   modalBackdrop: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
+    backgroundColor: Colors.overlay,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 24,
@@ -632,27 +650,27 @@ const styles = StyleSheet.create({
   modalCard: {
     width: '100%',
     borderRadius: 18,
-    backgroundColor: '#18181D',
+    backgroundColor: Colors.surface,
     borderWidth: 1,
-    borderColor: '#2A2A34',
+    borderColor: Colors.border,
     padding: 18,
   },
-  modalTitle: { color: '#FFF', fontSize: 20, fontWeight: '700' },
-  modalBody: { color: '#CDCDCD', fontSize: 15, marginTop: 10, lineHeight: 22 },
+  modalTitle: { color: Colors.textPrimary, fontSize: 22, fontFamily: Fonts.display },
+  modalBody: { color: Colors.textSecondary, fontSize: 15, marginTop: 10, lineHeight: 22 },
   modalCloseBtn: {
     marginTop: 16,
     alignSelf: 'flex-end',
     paddingHorizontal: 14,
     paddingVertical: 8,
     borderRadius: 10,
-    backgroundColor: '#2A2A34',
+    backgroundColor: Colors.surface2,
   },
-  modalCloseText: { color: '#FFF', fontWeight: '600' },
+  modalCloseText: { color: Colors.textPrimary, fontWeight: '600' },
   providersModalCard: {
     width: '100%',
     maxWidth: 360,
     borderRadius: 18,
-    backgroundColor: 'rgba(20,20,26,0.82)',
+    backgroundColor: 'rgba(35,21,24,0.92)',
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.18)',
     padding: 18,
@@ -685,7 +703,7 @@ const styles = StyleSheet.create({
   },
   providerName: {
     marginTop: 6,
-    color: '#D8D8D8',
+    color: Colors.textSecondary,
     fontSize: 11,
     textAlign: 'center',
   },
@@ -697,10 +715,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   statusToastText: {
-    color: '#F3F3F3',
+    color: Colors.textPrimary,
     fontSize: 12,
     fontWeight: '600',
-    backgroundColor: 'rgba(12,12,18,0.86)',
+    backgroundColor: 'rgba(23,14,16,0.86)',
     borderColor: 'rgba(255,255,255,0.18)',
     borderWidth: 1,
     borderRadius: 10,
