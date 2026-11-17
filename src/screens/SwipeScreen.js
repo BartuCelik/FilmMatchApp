@@ -32,7 +32,8 @@ import { fetchContent, fetchContentDetails } from '../services/api';
 
 const SWIPE_THRESHOLD = 110;
 const OFFSCREEN_X = 460;
-const CARD_HEIGHT = 560;
+const CARD_MAX_HEIGHT = 560;
+const GHOST_ROOM = 24; // top padding of stackWrap so the farthest ghost's peek fits
 
 /** Movie / TV modes swipe TMDB lists; both devices fetch the same endpoint, votes match by id. */
 async function loadTmdbItems(mode) {
@@ -58,6 +59,7 @@ export default function SwipeScreen({ navigation, route }) {
   const [loadingSession, setLoadingSession] = useState(Boolean(sessionId));
   const [tmdbItems, setTmdbItems] = useState(null);
   const [currentIndex, setCurrentIndex] = useState(0);
+  const [stackHeight, setStackHeight] = useState(0);
   const [detailOpen, setDetailOpen] = useState(false);
   const [matchIds, setMatchIds] = useState([]);
   const [providersByMovieId, setProvidersByMovieId] = useState({});
@@ -82,6 +84,10 @@ export default function SwipeScreen({ navigation, route }) {
     return tmdbItems ?? [];
   }, [isAiMode, sessionData?.moviePool, tmdbItems]);
   const loadingMovies = !isAiMode && tmdbItems === null;
+
+  // Card adapts to the measured stack area; 0 until onLayout fires (deck not rendered yet).
+  const cardHeight = stackHeight > 0 ? Math.min(CARD_MAX_HEIGHT, stackHeight - GHOST_ROOM) : 0;
+  const ghostShift = (scale, peek) => -((cardHeight * (1 - scale)) / 2 + peek);
 
   const currentMovie = movies[currentIndex] || null;
   const nextMovie = movies[currentIndex + 1] || null;
@@ -313,13 +319,36 @@ export default function SwipeScreen({ navigation, route }) {
           </View>
         </View>
 
-        <View style={styles.stackWrap}>
+        <View
+          style={styles.stackWrap}
+          onLayout={(e) => setStackHeight(Math.round(e.nativeEvent.layout.height))}
+        >
+          {cardHeight > 0 ? (
+            <>
           {/* Ghosts: only when >=3 / >=2 cards remain (current included). */}
-          {thirdMovie ? <View pointerEvents="none" style={[styles.card, styles.ghost2]} /> : null}
-          {nextMovie ? <View pointerEvents="none" style={[styles.card, styles.ghost1]} /> : null}
+          {thirdMovie ? (
+            <View
+              pointerEvents="none"
+              style={[
+                styles.card,
+                styles.ghost2,
+                { height: cardHeight, transform: [{ translateY: ghostShift(0.88, 24) }, { scale: 0.88 }] },
+              ]}
+            />
+          ) : null}
+          {nextMovie ? (
+            <View
+              pointerEvents="none"
+              style={[
+                styles.card,
+                styles.ghost1,
+                { height: cardHeight, transform: [{ translateY: ghostShift(0.94, 12) }, { scale: 0.94 }] },
+              ]}
+            />
+          ) : null}
 
           {currentMovie ? (
-            <Animated.View style={[styles.card, topCardStyle]} {...panResponder.panHandlers}>
+            <Animated.View style={[styles.card, { height: cardHeight }, topCardStyle]} {...panResponder.panHandlers}>
               <Image source={{ uri: currentMovie.image || undefined }} style={styles.poster} />
               <Animated.View pointerEvents="none" style={[styles.swipeOverlay, styles.likeGlow, likeOverlay]} />
               <Animated.View pointerEvents="none" style={[styles.swipeOverlay, styles.dislikeGlow, dislikeOverlay]} />
@@ -370,7 +399,7 @@ export default function SwipeScreen({ navigation, route }) {
               </LinearGradient>
             </Animated.View>
           ) : (
-            <View style={[styles.card, styles.doneCard]}>
+            <View style={[styles.card, styles.doneCard, { height: cardHeight }]}>
               <Text style={styles.doneTitle}>
                 {movies.length === 0 ? t('swipe_empty') : t('swipe_done_title')}
               </Text>
@@ -382,6 +411,8 @@ export default function SwipeScreen({ navigation, route }) {
               ) : null}
             </View>
           )}
+            </>
+          ) : null}
         </View>
 
         <View style={styles.actionsRow}>
@@ -485,13 +516,13 @@ const styles = StyleSheet.create({
   },
   stackWrap: {
     flex: 1,
+    paddingTop: GHOST_ROOM,
     alignItems: 'center',
     justifyContent: 'center',
   },
   card: {
     width: '100%',
     maxWidth: 360,
-    height: CARD_HEIGHT,
     borderRadius: 28,
     overflow: 'hidden',
     backgroundColor: Colors.surface,
@@ -506,13 +537,11 @@ const styles = StyleSheet.create({
   ghost1: {
     position: 'absolute',
     backgroundColor: Colors.surface2,
-    transform: [{ translateY: -10 }, { scale: 0.94 }],
     opacity: 0.55,
   },
   ghost2: {
     position: 'absolute',
     backgroundColor: Colors.surface2,
-    transform: [{ translateY: -20 }, { scale: 0.88 }],
     opacity: 0.3,
   },
   poster: { width: '100%', height: '72%' },
@@ -601,7 +630,7 @@ const styles = StyleSheet.create({
   actionBtnLike: {
     width: 62,
     height: 62,
-    borderRadius: 20,
+    borderRadius: 18,
     shadowColor: Colors.shadow,
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 1,
@@ -610,7 +639,7 @@ const styles = StyleSheet.create({
   },
   actionLikeFill: {
     flex: 1,
-    borderRadius: 20,
+    borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
   },
