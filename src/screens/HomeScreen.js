@@ -12,15 +12,18 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { signInAnonymously } from 'firebase/auth';
 import { AppButton } from '../components/common/AppButton';
 import { AppText } from '../components/common/AppText';
+import { IconSquare } from '../components/common/IconSquare';
+import { SurfaceCard } from '../components/common/SurfaceCard';
+import { WedgeBackground } from '../components/common/WedgeBackground';
+import { Ionicons } from '@expo/vector-icons';
 import { PreferencesHeaderControls } from '../components/common/PreferencesHeaderControls';
 import { FilmMatchLogo } from '../components/branding/FilmMatchLogo';
 import { AVATAR_CHOICES } from '../constants/avatars';
-import { useAppPreferences } from '../context/AppPreferencesContext';
 import { useI18n } from '../hooks/useI18n';
 import { auth } from '../services/firebaseConfig';
 import { setSessionParams } from '../services/navigationService';
+import { Colors } from '../constants/Colors';
 import { createMatchSession } from '../services/sessionService';
-import { getPalette } from '../theme/palettes';
 import { createHomeStyles } from './HomeScreen.styles';
 
 async function ensureAnonymousUser() {
@@ -31,10 +34,8 @@ async function ensureAnonymousUser() {
 
 export default function HomeScreen({ navigation }) {
   const insets = useSafeAreaInsets();
-  const { theme } = useAppPreferences();
   const { t } = useI18n();
-  const palette = useMemo(() => getPalette(theme), [theme]);
-  const styles = useMemo(() => createHomeStyles(palette), [palette]);
+  const styles = useMemo(() => createHomeStyles(), []);
 
   const [username, setUsername] = useState('');
   const [selectedAvatarId, setSelectedAvatarId] = useState(null);
@@ -91,8 +92,9 @@ export default function HomeScreen({ navigation }) {
         keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
       >
         <View style={styles.container}>
+          <WedgeBackground shape="list" />
           <View style={[styles.topBar, { paddingTop: Math.max(insets.top, 10) }]}>
-            <PreferencesHeaderControls palette={palette} />
+            <PreferencesHeaderControls />
           </View>
 
           <ScrollView
@@ -105,24 +107,21 @@ export default function HomeScreen({ navigation }) {
               <View style={styles.profileColumn}>
                 <View style={styles.logoBlock}>
                   <FilmMatchLogo
-                    accentColor={palette.indigo}
-                    accentSoft={palette.indigoLight}
-                    textColor={palette.textPrimary}
-                    taglineColor={palette.textMuted}
                     tagline={t('home_logo_tagline')}
                   />
                 </View>
 
+                <SurfaceCard style={styles.profileCard}>
                 <TextInput
                   style={styles.input}
                   placeholder={t('home_name_placeholder')}
-                  placeholderTextColor={palette.textMuted}
+                  placeholderTextColor={Colors.textMuted}
                   value={username}
                   onChangeText={setUsername}
                   editable={!isBusy}
                 />
 
-                <AppText variant="caption" style={[styles.avatarSectionLabel, { color: palette.textSecondary }]}>
+                <AppText variant="caption" style={[styles.avatarSectionLabel, { color: Colors.textSecondary }]}>
                   {t('home_avatar_label')}
                 </AppText>
                 <ScrollView
@@ -140,13 +139,15 @@ export default function HomeScreen({ navigation }) {
                         activeOpacity={0.85}
                         disabled={isBusy}
                       >
-                        <AppText variant="body" style={[styles.avatarEmoji, { color: palette.textPrimary }]}>
+                        <AppText variant="body" style={[styles.avatarEmoji, { color: Colors.textPrimary }]}>
                           {a.emoji}
                         </AppText>
                       </TouchableOpacity>
                     );
                   })}
                 </ScrollView>
+
+                </SurfaceCard>
 
                 <AppButton
                   title={t('home_continue')}
@@ -170,22 +171,25 @@ export default function HomeScreen({ navigation }) {
                   disabled={!profileComplete || isBusy}
                   style={styles.sectionSpacing}
                 />
-                <TouchableOpacity style={styles.backLink} onPress={() => setStep('profile')} activeOpacity={0.8}>
-                  <AppText variant="bodyStrong" style={[styles.backLinkText, { color: palette.indigoLight }]}>
-                    {t('home_back')}
-                  </AppText>
-                </TouchableOpacity>
+                <IconSquare
+                  variant="accent"
+                  onPress={() => setStep('profile')}
+                  accessibilityLabel={t('home_back')}
+                  style={styles.backLink}
+                >
+                  <Ionicons name="chevron-back" size={20} color={Colors.onAccent} />
+                </IconSquare>
               </View>
             )}
 
             {error ? (
-              <AppText variant="error" style={[styles.errorText, { color: palette.errorSoft }]}>
+              <AppText variant="error" style={[styles.errorText, { color: Colors.errorSoft }]}>
                 {error}
               </AppText>
             ) : null}
           </ScrollView>
 
-          <StatusBar style={theme === 'dark' ? 'light' : 'dark'} />
+          <StatusBar style="light" />
         </View>
       </KeyboardAvoidingView>
     </SafeAreaView>

@@ -47,3 +47,8 @@ yarn-error.*
 .firebase/
 firebase-debug.log
 firestore-debug.log
+
+worker/node_modules
+worker/.wrangler
+worker/.dev.vars
+.superpowers/

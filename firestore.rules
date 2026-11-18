@@ -17,27 +17,17 @@ service cloud.firestore {
           && request.resource.data.participants == resource.data.participants.concat([request.auth.uid]);
       }
 
-      // Clients may only reset a failed AI run back to idle; the Cloud Function owns every other transition.
-      function aiStatusChangeAllowed() {
-        return !request.resource.data.diff(resource.data).affectedKeys().hasAny(['aiStatus'])
-          || (resource.data.aiStatus == 'error' && request.resource.data.aiStatus == 'idle');
-      }
-
       // shortcut: any signed-in user can read rooms because joining queries by code; move the code lookup to a function if room data becomes sensitive.
       allow read: if signedIn();
 
       allow create: if signedIn()
         && request.resource.data.hostId == request.auth.uid
         && request.resource.data.participants == [request.auth.uid]
-        && request.resource.data.aiStatus == 'idle'
-        && !('moviePool' in request.resource.data)
-        && !('aiAttempts' in request.resource.data);
+        && request.resource.data.aiStatus == 'idle';
 
       allow update: if signedIn()
         && (isParticipant() || isJoining())
-        // aiAttempts is server-only: letting clients reset it would allow unlimited Claude calls.
-        && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['moviePool', 'aiAttempts', 'hostId', 'code'])
-        && aiStatusChangeAllowed();
+        && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['hostId', 'code']);
 
       match /votes/{userId} {
         function inRoom() {

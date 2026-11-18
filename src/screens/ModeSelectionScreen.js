@@ -9,33 +9,27 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { AppText } from '../components/common/AppText';
+import { IconSquare } from '../components/common/IconSquare';
+import { SurfaceCard } from '../components/common/SurfaceCard';
+import { WedgeBackground } from '../components/common/WedgeBackground';
 import { getAvatarEmoji } from '../constants/avatars';
 import { Colors } from '../constants/Colors';
+import { useI18n } from '../hooks/useI18n';
 import { isSessionDisbanded, requestDisbandNavigation } from '../hooks/useSessionDisbandSync';
 import { getSessionParams, setSessionParams, useMergedRouteParams } from '../services/navigationService';
 import { setSessionSelectedMode, subscribeToSession } from '../services/sessionService';
 
 const MODE_OPTIONS = [
-  {
-    key: 'ai',
-    title: 'AI Kürasyon',
-    subtitle: 'Kişiselleştirilmiş öneriler',
-  },
-  {
-    key: 'movie',
-    title: 'Movie Mode',
-    subtitle: 'Match with popular movies',
-  },
-  {
-    key: 'tv',
-    title: 'TV Series Mode',
-    subtitle: 'Discover popular and top rated series',
-  },
+  { key: 'ai', icon: '🍿', titleKey: 'mode_ai_title', subtitleKey: 'mode_ai_subtitle' },
+  { key: 'movie', icon: '🎬', titleKey: 'mode_movie_title', subtitleKey: 'mode_movie_subtitle' },
+  { key: 'tv', icon: '📺', titleKey: 'mode_tv_title', subtitleKey: 'mode_tv_subtitle' },
 ];
 
 export default function ModeSelectionScreen({ navigation, route }) {
+  const { t } = useI18n();
   const merged = useMergedRouteParams(route);
   const { username = '', sessionId, code } = merged;
+  const [selectedKey, setSelectedKey] = useState(null);
   const lastNavigatedModeRef = useRef(null);
   const disbandRef = useRef(false);
 
@@ -103,6 +97,7 @@ export default function ModeSelectionScreen({ navigation, route }) {
   }, [sessionId, navigation, route?.params]);
 
   const handleModeSelect = async (modeKey) => {
+    setSelectedKey(modeKey);
     setSyncError('');
     if (!sessionId) {
       if (modeKey === 'ai') {
@@ -130,6 +125,7 @@ export default function ModeSelectionScreen({ navigation, route }) {
 
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
+      <WedgeBackground shape="list" />
       <KeyboardAvoidingView
         style={styles.keyboard}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -180,17 +176,24 @@ export default function ModeSelectionScreen({ navigation, route }) {
             {MODE_OPTIONS.map((modeOption) => (
               <TouchableOpacity
                 key={modeOption.key}
-                style={[styles.modeCard, !modeButtonsEnabled && styles.modeCardDisabled]}
                 onPress={() => handleModeSelect(modeOption.key)}
                 disabled={!modeButtonsEnabled}
                 activeOpacity={0.9}
+                style={!modeButtonsEnabled && styles.modeCardDisabled}
               >
-                <AppText variant="section" style={styles.modeTitle}>
-                  {modeOption.title}
-                </AppText>
-                <AppText variant="body" style={styles.modeSubtitle}>
-                  {modeOption.subtitle}
-                </AppText>
+                <SurfaceCard selected={selectedKey === modeOption.key} style={styles.modeCard}>
+                  <IconSquare variant={selectedKey === modeOption.key ? 'accent' : 'surface'} size={48}>
+                    <AppText variant="body" style={styles.modeIcon}>{modeOption.icon}</AppText>
+                  </IconSquare>
+                  <View style={styles.modeText}>
+                    <AppText variant="section" style={styles.modeTitle}>
+                      {t(modeOption.titleKey)}
+                    </AppText>
+                    <AppText variant="body" style={styles.modeSubtitle}>
+                      {t(modeOption.subtitleKey)}
+                    </AppText>
+                  </View>
+                </SurfaceCard>
               </TouchableOpacity>
             ))}
           </View>
@@ -203,7 +206,7 @@ export default function ModeSelectionScreen({ navigation, route }) {
 const styles = StyleSheet.create({
   safe: {
     flex: 1,
-    backgroundColor: Colors.surface,
+    backgroundColor: Colors.background,
   },
   keyboard: {
     flex: 1,
@@ -229,14 +232,14 @@ const styles = StyleSheet.create({
     borderRadius: 32,
     backgroundColor: Colors.surfaceElevated,
     borderWidth: 2,
-    borderColor: Colors.indigoLight,
+    borderColor: Colors.accent,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: Colors.glowIndigoStrong,
+    shadowColor: Colors.shadow,
     shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.9,
-    shadowRadius: 12,
-    elevation: 10,
+    shadowOpacity: 1,
+    shadowRadius: 8,
+    elevation: 4,
   },
   partnerAvatarEmoji: {
     fontSize: 30,
@@ -247,18 +250,18 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     paddingHorizontal: 16,
     borderRadius: 16,
-    backgroundColor: Colors.surfaceCard,
+    backgroundColor: Colors.surface,
     borderWidth: 1,
-    borderColor: Colors.indigoMuted,
-    shadowColor: Colors.glowIndigo,
+    borderColor: Colors.border,
+    shadowColor: Colors.shadow,
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.55,
-    shadowRadius: 14,
-    elevation: 6,
+    shadowOpacity: 1,
+    shadowRadius: 8,
+    elevation: 3,
   },
   tipText: {
     textAlign: 'center',
-    color: Colors.textOnAccent,
+    color: Colors.textPrimary,
     fontSize: 14,
     lineHeight: 20,
   },
@@ -271,7 +274,7 @@ const styles = StyleSheet.create({
   },
   waitingText: {
     marginTop: 20,
-    color: Colors.textOnAccent,
+    color: Colors.textPrimary,
   },
   errorText: {
     marginTop: 12,
@@ -281,22 +284,26 @@ const styles = StyleSheet.create({
     gap: 14,
   },
   modeCard: {
-    backgroundColor: Colors.surfaceMuted,
-    borderRadius: 18,
-    paddingVertical: 26,
-    paddingHorizontal: 20,
-    borderWidth: 1,
-    borderColor: Colors.borderLight,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+    paddingVertical: 18,
+    paddingHorizontal: 16,
+  },
+  modeIcon: {
+    fontSize: 24,
+  },
+  modeText: {
+    flex: 1,
   },
   modeCardDisabled: {
     opacity: 0.4,
   },
   modeTitle: {
-    fontSize: 24,
     color: Colors.textPrimary,
   },
   modeSubtitle: {
-    marginTop: 8,
+    marginTop: 4,
     color: Colors.textSecondary,
   },
 });

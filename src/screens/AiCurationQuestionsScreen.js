@@ -14,12 +14,15 @@ import {
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AppButton } from '../components/common/AppButton';
 import { AppText } from '../components/common/AppText';
+import { WedgeBackground } from '../components/common/WedgeBackground';
+import { useI18n } from '../hooks/useI18n';
 import { GradientEnergySlider } from '../components/common/GradientEnergySlider';
 import { Colors } from '../constants/Colors';
 import { auth } from '../services/firebaseConfig';
 import { isSessionDisbanded, requestDisbandNavigation } from '../hooks/useSessionDisbandSync';
 import { setSessionParams, useMergedRouteParams } from '../services/navigationService';
 import {
+  generateAiPool,
   retryAiCuration,
   subscribeToSession,
   updateCurationResponses,
@@ -43,6 +46,7 @@ function allParticipantsHaveResponses(participants, responses) {
 }
 
 export default function AiCurationQuestionsScreen({ navigation, route }) {
+  const { t } = useI18n();
   const merged = useMergedRouteParams(route);
   const { username = '', sessionId } = merged;
   const userId = auth.currentUser?.uid ?? null;
@@ -58,6 +62,7 @@ export default function AiCurationQuestionsScreen({ navigation, route }) {
   const [submitError, setSubmitError] = useState('');
   const [wizardDone, setWizardDone] = useState(false);
   const aiReadyNavigatedRef = useRef(false);
+  const aiStartedRef = useRef(false);
   const scrollViewRef = useRef(null);
   const moodInputRef = useRef(null);
   const redLinesInputRef = useRef(null);
@@ -125,7 +130,7 @@ export default function AiCurationQuestionsScreen({ navigation, route }) {
 
   const participants = sessionSnap?.participants;
   const curationResponses = sessionSnap?.curationResponses;
-  // Havuzu functions/index.js içindeki Cloud Function (Claude + TMDB) üretir.
+  // Havuzu host cihaz Cloudflare Worker'dan (Workers AI + TMDB) ister.
   const aiStatus = sessionSnap?.aiStatus ?? 'idle';
 
   useEffect(() => {
@@ -135,6 +140,21 @@ export default function AiCurationQuestionsScreen({ navigation, route }) {
     setSessionParams({ ...merged, sessionId, username });
     navigation.replace('Match');
   }, [aiStatus, merged, navigation, sessionId, username]);
+
+  const bothAnsweredForPool = allParticipantsHaveResponses(participants, curationResponses);
+  const poolEmpty = !sessionSnap?.moviePool?.length;
+  const isHost = !!userId && userId === participants?.[0];
+  useEffect(() => {
+    if (aiStatus !== 'idle') {
+      aiStartedRef.current = false; // re-arm so "Tekrar dene" (back to idle) triggers another run
+      return;
+    }
+    if (aiStartedRef.current) return;
+    if (!bothAnsweredForPool || sessionSnap?.selectedMode !== 'ai' || !poolEmpty || !isHost) return;
+    aiStartedRef.current = true;
+    // shortcut: the host device drives generation, so if the host leaves mid-run the room stalls in 'generating'; add a server-side trigger if that matters.
+    generateAiPool(sessionId, sessionSnap).catch(() => {});
+  }, [aiStatus, bothAnsweredForPool, poolEmpty, isHost, sessionId, sessionSnap]);
 
   const progress = (currentStep + 1) / STEPS;
 
@@ -193,7 +213,7 @@ export default function AiCurationQuestionsScreen({ navigation, route }) {
 
   const bothAnswered = allParticipantsHaveResponses(participants, curationResponses);
   const partnerWaiting = wizardDone && !bothAnswered;
-  // error: retry allowed; failed: retries used up; limit: daily AI cap reached (see functions/curation.js).
+  // error: retry allowed; failed: retries used up; limit: daily AI cap reached (Worker 429).
   const poolStopped = ['error', 'failed', 'limit'].includes(aiStatus);
   const poolGenerating = wizardDone && bothAnswered && !poolStopped;
   const poolFailed = wizardDone && bothAnswered && poolStopped;
@@ -204,6 +224,7 @@ export default function AiCurationQuestionsScreen({ navigation, route }) {
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
       <View style={styles.root}>
+        <WedgeBackground shape="list" />
         <KeyboardAvoidingView
           style={styles.keyboardAvoid}
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -221,7 +242,7 @@ export default function AiCurationQuestionsScreen({ navigation, route }) {
             }}
           >
             <AppText variant="kicker" style={styles.kickerTint}>
-              AI Kürasyon
+              {t('mode_ai_title')}
             </AppText>
             <AppText variant="screenTitle" style={styles.titleHero}>
               {username ? `${username}, ` : ''}Let&apos;s pick
@@ -340,7 +361,7 @@ export default function AiCurationQuestionsScreen({ navigation, route }) {
 
             {partnerWaiting ? (
               <View style={styles.banner}>
-                <ActivityIndicator color={Colors.indigoGlow} />
+                <ActivityIndicator color={Colors.gold} />
                 <AppText variant="bodyStrong" style={styles.bannerText}>
                   Partnerinin cevapları bekleniyor...
                 </AppText>
@@ -349,7 +370,7 @@ export default function AiCurationQuestionsScreen({ navigation, route }) {
 
             {poolGenerating ? (
               <View style={styles.banner}>
-                <ActivityIndicator color={Colors.indigoGlow} />
+                <ActivityIndicator color={Colors.gold} />
                 <AppText variant="bodyStrong" style={styles.bannerText}>
                   Size özel film havuzu hazırlanıyor...
                 </AppText>
@@ -360,7 +381,7 @@ export default function AiCurationQuestionsScreen({ navigation, route }) {
               <>
                 <AppText variant="error" style={styles.error}>
                   {aiStatus === 'limit'
-                    ? 'AI önerileri bugünlük doldu. Film ya da Dizi modunu deneyebilirsiniz.'
+                    ? t('curation_quota_reached')
                     : aiStatus === 'failed'
                       ? 'Öneriler hazırlanamadı. Film ya da Dizi modunu deneyebilirsiniz.'
                       : 'Öneriler hazırlanamadı.'}
@@ -407,25 +428,24 @@ const styles = StyleSheet.create({
     paddingTop: 16,
   },
   kickerTint: {
-    color: Colors.indigoLight,
+    color: Colors.gold,
   },
   titleHero: {
     marginTop: 8,
     color: Colors.textPrimary,
-    fontWeight: '900',
     letterSpacing: 0.2,
   },
   progressTrack: {
     marginTop: 22,
     height: 6,
     borderRadius: 4,
-    backgroundColor: Colors.trackUnderlay,
+    backgroundColor: Colors.surface2,
     overflow: 'hidden',
   },
   progressFill: {
     height: '100%',
     borderRadius: 4,
-    backgroundColor: Colors.indigo,
+    backgroundColor: Colors.accent,
   },
   stepMeta: {
     marginTop: 8,
@@ -453,21 +473,20 @@ const styles = StyleSheet.create({
     width: '30%',
     minWidth: 96,
     flexGrow: 1,
-    backgroundColor: Colors.surfaceMuted,
+    backgroundColor: Colors.surface2,
     borderRadius: 14,
     paddingVertical: 12,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: Colors.borderLight,
+    borderColor: Colors.border,
   },
   moodChipActive: {
-    borderColor: Colors.indigo,
-    backgroundColor: Colors.indigoTrack,
+    borderColor: Colors.accent,
+    backgroundColor: Colors.surface2,
   },
   moodEmoji: {
     fontSize: 26,
     color: Colors.textPrimary,
-    fontWeight: '500',
   },
   moodLabel: {
     marginTop: 4,
@@ -489,7 +508,7 @@ const styles = StyleSheet.create({
     color: Colors.textPrimary,
     fontSize: 15,
     borderWidth: 1,
-    borderColor: Colors.borderLight,
+    borderColor: Colors.border,
     textAlignVertical: 'top',
   },
   energyValue: {
@@ -513,13 +532,13 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     paddingHorizontal: 16,
     borderRadius: 999,
-    backgroundColor: Colors.surfaceMuted,
+    backgroundColor: Colors.surface2,
     borderWidth: 1,
-    borderColor: Colors.borderLight,
+    borderColor: Colors.border,
   },
   chipOn: {
-    backgroundColor: Colors.indigoTrack,
-    borderColor: Colors.indigo,
+    backgroundColor: Colors.surface2,
+    borderColor: Colors.accent,
   },
   chipText: {
     color: Colors.textSecondary,
@@ -536,15 +555,15 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    backgroundColor: Colors.surfaceCard,
+    backgroundColor: Colors.surface,
     padding: 14,
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: Colors.borderAccent,
+    borderColor: Colors.border,
   },
   bannerText: {
     flex: 1,
-    color: Colors.textOnAccent,
+    color: Colors.textPrimary,
   },
   success: {
     marginTop: 14,

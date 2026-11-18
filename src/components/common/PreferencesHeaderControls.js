@@ -1,12 +1,13 @@
 import React, { useMemo, useState } from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { Colors } from '../../constants/Colors';
 import { useAppPreferences } from '../../context/AppPreferencesContext';
 
 const LANGUAGE_OPTIONS = ['tr', 'en', 'de', 'es', 'fr', 'it', 'ru'];
 
-export function PreferencesHeaderControls({ palette }) {
-  const { theme, toggleTheme, setLocale, locale } = useAppPreferences();
+export function PreferencesHeaderControls() {
+  const { setLocale, locale } = useAppPreferences();
   const [isLanguageMenuOpen, setLanguageMenuOpen] = useState(false);
 
   const s = useMemo(
@@ -28,20 +29,20 @@ export function PreferencesHeaderControls({ palette }) {
           paddingVertical: 6,
           borderRadius: 8,
           borderWidth: 1,
-          borderColor: palette.borderLight,
-          backgroundColor: palette.surfaceMuted,
+          borderColor: Colors.border,
+          backgroundColor: Colors.surface2,
         },
         langChipActive: {
-          borderColor: palette.indigo,
-          backgroundColor: palette.indigoTrack,
+          borderColor: Colors.accent,
+          backgroundColor: Colors.accentDeep,
         },
         langChipText: {
           fontSize: 12,
           fontWeight: '700',
-          color: palette.textSecondary,
+          color: Colors.textSecondary,
         },
         langChipTextActive: {
-          color: palette.textPrimary,
+          color: Colors.textPrimary,
         },
         chevron: {
           marginLeft: 6,
@@ -53,8 +54,8 @@ export function PreferencesHeaderControls({ palette }) {
           minWidth: 60,
           borderRadius: 10,
           borderWidth: 1,
-          borderColor: palette.borderLight,
-          backgroundColor: palette.surface,
+          borderColor: Colors.border,
+          backgroundColor: Colors.surface,
           padding: 6,
           gap: 6,
         },
@@ -63,22 +64,12 @@ export function PreferencesHeaderControls({ palette }) {
           paddingVertical: 6,
           borderRadius: 8,
           borderWidth: 1,
-          borderColor: palette.borderLight,
-          backgroundColor: palette.surfaceMuted,
+          borderColor: Colors.border,
+          backgroundColor: Colors.surface2,
           alignItems: 'center',
-        },
-        themeBtn: {
-          width: 40,
-          height: 36,
-          borderRadius: 10,
-          borderWidth: 1,
-          borderColor: palette.borderLight,
-          alignItems: 'center',
-          justifyContent: 'center',
-          backgroundColor: palette.surfaceMuted,
         },
       }),
-    [palette],
+    [],
   );
 
   return (
@@ -93,7 +84,7 @@ export function PreferencesHeaderControls({ palette }) {
           <Ionicons
             name={isLanguageMenuOpen ? 'chevron-up' : 'chevron-down'}
             size={14}
-            color={palette.textPrimary}
+            color={Colors.textPrimary}
             style={s.chevron}
           />
         </TouchableOpacity>
@@ -117,13 +108,6 @@ export function PreferencesHeaderControls({ palette }) {
           </View>
         )}
       </View>
-      <TouchableOpacity style={s.themeBtn} onPress={toggleTheme} activeOpacity={0.85}>
-        <Ionicons
-          name={theme === 'dark' ? 'sunny-outline' : 'moon'}
-          size={20}
-          color={palette.textPrimary}
-        />
-      </TouchableOpacity>
     </View>
   );
 }

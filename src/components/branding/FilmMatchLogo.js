@@ -8,15 +8,16 @@ import Svg, {
   Rect,
   Stop,
 } from 'react-native-svg';
+import { Colors } from '../../constants/Colors';
 
 /**
  * FilmMatch mark + wordmark — vektör ikon, tema renkleriyle uyumlu.
  */
 export function FilmMatchLogo({
-  accentColor = '#6366F1',
-  accentSoft = '#818CF8',
-  textColor = '#FFFFFF',
-  taglineColor = '#9A9A9A',
+  accentColor = Colors.accent,
+  accentSoft = Colors.gold,
+  textColor = Colors.textPrimary,
+  taglineColor = Colors.textMuted,
   tagline,
 }) {
   const gradIdRef = useRef(`fmgrad-${Math.random().toString(36).slice(2, 10)}`);
@@ -42,7 +43,7 @@ export function FilmMatchLogo({
         <Rect x={26} y={10} width={164} height={52} rx={14} fill={`url(#${gradId})`} opacity={0.95} />
         <Rect x={26} y={10} width={164} height={52} rx={14} fill="none" stroke={accentSoft} strokeWidth={1} opacity={0.35} />
 
-        <Polygon points="94,26 94,46 118,36" fill="#FFFFFF" opacity={0.95} />
+        <Polygon points="94,26 94,46 118,36" fill={Colors.onAccent} opacity={0.95} />
 
         <Rect x={38} y={58} width={140} height={3} rx={1.5} fill={accentColor} opacity={0.35} />
       </Svg>
