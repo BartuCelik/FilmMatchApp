@@ -1,109 +1,78 @@
-# 🎬 FilmMatchApp
+# FilmMatch
 
-"Ne izlesek?" sorusuna iki kişilik cevap: aynı odaya girin, filmleri sağa/sola kaydırın, ikinizin de beğendiği film eşleşme olsun.
+A mobile app that ends the "what should we watch?" argument. Two people join the same session from their own phones, answer three quick questions, and swipe through a shortlist built for both of them. When both swipe right on the same film, it's a match.
 
-## Özellikler
+## How it works
 
-- **Kayıtsız giriş**: Firebase anonim oturum, isim + avatar yeterli.
-- **6 haneli oda kodu**: Biri odayı kurar, diğeri kodla katılır; her şey Firestore üzerinden gerçek zamanlı senkron.
-- **Modlar**
-  - **Film / Dizi**: TMDB popüler ve en yüksek puanlı listeleri.
-  - **Bize Seç** (AI kürasyon): İki kişi de ruh hali, enerji seviyesi ve kırmızı çizgilerini girer; Cloudflare Workers AI ikinize özel 8 filmlik bir havuz hazırlar (2 sizin, 2 partnerinizin, 4 ortak zevk). Filmler TMDB'de doğrulanır, posterler ve izleme platformları gerçek veridir.
-- **Eşleşme**: İkinizin de sağa kaydırdığı filmler anında bildirilir.
-- **Görünüm ve dil**: "Kadife Perde" koyu tema (bordo, kadife kırmızısı, altın; başlıklarda DM Serif Display); TR, EN, DE, ES, FR, IT, RU.
+1. **Start or join a session.** No sign-up: one person creates a session and shares a 6-digit code, the other joins with it. Sessions use anonymous Firebase auth.
+2. **Pick a mode.** *Movies* or *Series* pull popular and top-rated titles from TMDB. *Pick for Us* ("Bize Seç") builds a pool just for the two of you.
+3. **Answer three questions** (Pick for Us). Mood, energy level and deal-breakers, set by each person separately.
+4. **Get a shared pool.** A Cloudflare Worker running Workers AI (Llama 3.3 70B) picks 8 films from both sets of answers: 2 for each person's taste and 4 on common ground. Every pick is verified against TMDB, so posters, details and streaming providers are real data.
+5. **Swipe.** Each vote is written to Firestore and both phones listen to the session in real time, so a mutual like shows up on both screens as soon as it happens.
 
-## Teknik yapı
+## Tech stack
 
-| Katman | Teknoloji |
-|---|---|
-| Uygulama | React Native (Expo SDK 54) |
-| Veri / Auth | Firebase Firestore + Anonymous Auth |
-| AI Kürasyon | Cloudflare Worker + Workers AI (`worker/`, ücretsiz plan) |
-| Film verisi | TMDB API |
+| Area        | Technology                                        |
+|-------------|---------------------------------------------------|
+| App         | React Native, Expo SDK 58                         |
+| Realtime    | Firebase Firestore (`onSnapshot` listeners), Firebase Auth (anonymous) |
+| AI curation | Cloudflare Worker + Workers AI (`worker/`, free tier) |
+| Movie data  | TMDB API                                          |
+| UI          | "Kadife Perde" dark theme (burgundy, velvet red, gold; DM Serif Display headings), haptic feedback, 7 languages (TR, EN, DE, ES, FR, IT, RU) |
 
-AI anahtarı uygulamaya hiç girmez: host cihaz iki kullanıcının cevaplarını Worker'a (`POST /curate`) gönderir, Worker Workers AI'dan film listesini alır, TMDB'de doğrular ve havuzu döner; host bunu `moviePool` alanına yazar.
+No AI key ever ships in the app: the host phone sends both users' answers to the Worker (`POST /curate`), the Worker asks Workers AI for a list, verifies it on TMDB and returns the pool, and the host writes it to the session's `moviePool` field.
+
+## Project structure
 
 ```
 src/
-├── components/   Ortak UI bileşenleri (AppButton, AppText, IconSquare, SurfaceCard, WedgeBackground, ...)
-├── constants/    Renkler (tek renk kaynağı: Colors.js), fontlar, avatarlar
-├── context/      Dil tercihi
-├── hooks/        useI18n, useSessionDisbandSync
-├── i18n/         Çeviri metinleri
-├── navigation/   Stack navigator
-├── screens/      Home, JoinRoomCode, ModeSelection, AiCurationQuestions, Swipe
-└── services/     Firebase, TMDB, oturum servisi
-worker/           Cloudflare Worker: AI kürasyon (Workers AI + TMDB)
+  components/   Reusable UI (AppButton, AppText, IconSquare, SurfaceCard, WedgeBackground, ...)
+  constants/    Colors (single source: Colors.js), fonts, avatars
+  context/      Language preference
+  hooks/        i18n, session disband sync
+  i18n/         Translations
+  navigation/   Stack navigator
+  screens/      Home, join-by-code, mode selection, curation questions, swipe
+  services/     Firebase session logic, TMDB client
+worker/         Cloudflare Worker: AI curation (Workers AI + TMDB)
 ```
 
-## Kurulum
+## Run it locally
 
-1. Bağımlılıklar: `npm install` ve `cd worker && npm install`
-2. `.env.example` dosyasını `.env` olarak kopyalayıp Firebase ve TMDB değerlerini girin.
-3. Uygulama: `npx expo start`
+You need Node.js and the Expo Go app (SDK 58) or an emulator, plus your own Firebase project and TMDB API key.
 
-### AI Kürasyon için (bir kez)
+```bash
+git clone https://github.com/BartuCelik/FilmMatchApp.git
+cd FilmMatchApp
+npm install
+cp .env.example .env    # fill in your Firebase and TMDB keys
+npx expo start
+```
 
-1. Ücretsiz bir Cloudflare hesabı açın (kart gerekmez).
-2. `cd worker && npx wrangler login`
+### Curation worker (one-time)
+
+1. Create a free Cloudflare account (no card needed).
+2. `cd worker && npm install && npx wrangler login`
 3. `npx wrangler secret put TMDB_API_KEY`
 4. `npx wrangler deploy`
-5. Çıkan URL'yi `.env` dosyasına `EXPO_PUBLIC_CURATION_URL` olarak yazın (sonu `/curate` olmalı).
-6. `npm install -g firebase-tools`
-7. `firebase login`
-8. `firebase use --add`
-9. `firebase deploy --only firestore:rules` (Spark planında çalışır).
+5. Put the printed URL in `.env` as `EXPO_PUBLIC_CURATION_URL` (it must end in `/curate`).
+6. Deploy the Firestore rules (works on the free Spark plan): `npx firebase-tools login`, `npx firebase-tools use --add`, `npx firebase-tools deploy --only firestore:rules`
 
-Worker testleri: `cd worker && npm test`
-Renk kontrolü: `npm run check:theme` (`Colors.js` dışında hex renk / indigo olmamalı, mod çevirileri 7 dilde olmalı)
+Worker tests: `cd worker && npm test`
+Theme check: `npm run check:theme` (no hex colours or indigo outside `Colors.js`, mode labels translated in all 7 languages)
 
-## Yol haritası
+## Status
 
-- [x] Firebase & anonim giriş
-- [x] 6 haneli kod ile oda senkronu
-- [x] UI/UX ve çoklu dil
-- [x] AI kürasyon (Workers AI + TMDB), Worker canlıda
-- [x] Kadife Perde yeniden tasarımı (kod tamam)
-- [ ] Cihazda uçtan uca test (aşağıya bakın)
-- [x] Swipe ve eşleşme mantığı
-- [ ] Eşleşme animasyonu ve sonuç ekranı
+Personal side project, in progress. Working notes (in Turkish) live in [docs/STATUS.md](docs/STATUS.md).
 
-## Kaldığımız yer (18 Kasım 2026)
+- [x] Anonymous sessions and joining by 6-digit code
+- [x] Three-question curation flow
+- [x] Worker-built shared movie pool, verified on TMDB
+- [x] Real-time swiping with mutual-like detection
+- [x] "Kadife Perde" redesign
+- [ ] Match celebration screen and results summary
+- [ ] Sessions for groups larger than two
 
-**Durum:** Kod tamam, PR açık ama taslak: [#9](https://github.com/BartuCelik/FilmMatchApp/pull/9) (branch `feature/ai-curation-swipe-overhaul`). Eksik olan tek şey cihazda deneme.
+---
 
-**Bugün yapılanlar**
-- **Worker canlıda:** `https://filmmatch-curation.bartu-filmmatch.workers.dev/curate`
-  - Test isteğine 8 filmlik havuz döndü. Llama'nın JSON çıktısı sorunsuz.
-  - İlk denemedeki 502 hatası, TMDB secret'ının yanlış yapıştırılmasından kaynaklanıyordu. Secret düzeltildi.
-  - Worker artık TMDB hatalarını logluyor: `cd worker && npx wrangler tail`
-- **Gemini kararı:** alınan Gemini aboneliği API erişimi vermiyor. Llama yeterli olduğu için Gemini'ye geçilmedi.
-- **"Kadife Perde" yeniden tasarımı:**
-  - Indigo "yapay zeka uygulaması" görünümü kaldırıldı; yerine bordo zemin `#170E10`, kadife kırmızısı `#D23C43` ve altın `#D9A441` geldi.
-  - Uygulama artık sadece koyu temada çalışıyor; tema düğmesi kaldırıldı.
-  - Başlıklarda DM Serif Display kullanılıyor.
-  - Ekranlarda çapraz kırmızı kesit, kartlar ve kare ikon butonlar var.
-  - "AI Kürasyon" modunun adı **"Bize Seç"** oldu.
-  - Swipe ekranında arkada üst üste kartlar var ve kart yüksekliği ekrana göre ayarlanıyor.
-  - Tasarım belgesi: `docs/superpowers/specs/2026-11-18-kadife-perde-redesign-design.md`
-  - Uygulama planı: `docs/superpowers/plans/2026-11-18-kadife-perde-redesign.md`
-- **Kontroller:** `npm run check:theme` geçiyor, Android derlemesi alınıyor, worker testleri 17/17 geçiyor.
-
-**Sıradaki adımlar**
-1. `.env` dosyasına şunu ekle: `EXPO_PUBLIC_CURATION_URL=https://filmmatch-curation.bartu-filmmatch.workers.dev/curate`
-2. Firestore kurallarını yayınla: `npx firebase-tools login`, sonra `npx firebase-tools use --add` (projeyi seç), sonra `npx firebase-tools deploy --only firestore:rules`
-3. `npx expo start -c` ile uygulamayı açıp iki cihazla dene: oda kur → katıl → Bize Seç → iki taraf da cevaplasın → swipe. Bir kez de Türkçe dışında bir dil seç.
-4. Görünüme bak:
-   - Liste ekranlarındaki kırmızı kesit fazla soluk mu? Ayarı `src/components/common/WedgeBackground.js` içinde, `OPACITY.list` şu an 0.3.
-   - Küçük ekranlı bir telefonda swipe kartı düzgün görünüyor mu?
-5. Her şey yolundaysa PR #9'da "Ready for review" de ve `master`'a birleştir.
-6. Sonraki özellik: eşleşme animasyonu ve sonuç ekranı.
-
-**Bilinen sınırlar ve küçük notlar**
-- Workers AI'ın ücretsiz kotası günde yaklaşık 50 kürasyona yetiyor (tahmin).
-- Oda sahibi film üretilirken ekrandan çıkarsa oda "hazırlanıyor" durumunda kalabilir.
-- Mod seçimi ve sorular ekranındaki bazı metinler hâlâ koda gömülü Türkçe/İngilizce.
-- Rusça çeviriler karışık: yeni eklenenlerin bir kısmı Kiril alfabesiyle, eskiler Latin harfleriyle yazılmış.
-- `graphify-out/` ve `.vscode/` takip edilmiyor. VS Code'da görünen "19 değişiklik" bunlar; istenirse `.gitignore`'a eklenebilir.
-
-Developed by Bartu Celik
+Built by [Bartu Çelik](https://github.com/BartuCelik).
